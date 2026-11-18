@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hash and Signature Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a lab bench. Each experiment is one bench panel: controls on the left, live readout on the right; stacks on phones. */
+:root {
+  --bg: #eef0f3;
+  --panel: #ffffff;
+  --ink: #141820;
+  --muted: #5a6371;
+  --line: #d6dbe2;
+  --accent: #c8561a;
+  --accent-2: #17737a;
+  --bit-on: #1f2632;
+  --bit-off: #e3e7ec;
+  --ok: #2b7d45;
+  --bad: #b8332f;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1116; --panel: #161a21; --ink: #e6e9ee; --muted: #9aa3b0; --line: #2a313c;
+    --accent: #f0873f; --accent-2: #45b5bd; --bit-on: #dfe4ea; --bit-off: #242a34;
+    --ok: #5cc27c; --bad: #ef6b63; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1116; --panel: #161a21; --ink: #e6e9ee; --muted: #9aa3b0; --line: #2a313c;
+  --accent: #f0873f; --accent-2: #45b5bd; --bit-on: #dfe4ea; --bit-off: #242a34;
+  --ok: #5cc27c; --bad: #ef6b63; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+a { color: var(--accent-2); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 64px; }
+header h1 { font-family: var(--font-display); font-weight: 600; font-size: 34px; letter-spacing: -0.01em; margin: 0 0 6px; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 68ch; }
+nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 26px; }
+nav a { font-family: var(--font-mono); font-size: 12.5px; text-decoration: none; color: var(--ink); border: 1px solid var(--line); background: var(--panel); padding: 5px 10px; border-radius: 6px; }
+nav a:hover { border-color: var(--accent); }
+.lab { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 22px; scroll-margin-top: 12px; }
+.lab-head { padding: 18px 22px 14px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: auto 1fr; column-gap: 14px; }
+.num { font-family: var(--font-mono); color: var(--accent); font-size: 13px; padding-top: 6px; grid-row: span 2; }
+.lab-head h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; margin: 0; text-wrap: balance; }
+.lab-head p { margin: 2px 0 0; color: var(--muted); max-width: 72ch; }
+.lab-body { display: grid; grid-template-columns: minmax(250px, 330px) 1fr; }
+.controls { padding: 18px 22px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 16px; }
+.out { padding: 18px 22px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+@media (max-width: 820px) {
+  .lab-body { grid-template-columns: 1fr; }
+  .controls { border-right: 0; border-bottom: 1px solid var(--line); }
+}
+label.f { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+label.f .top { display: flex; justify-content: space-between; gap: 8px; }
+label.f b { color: var(--ink); font-weight: 500; font-family: var(--font-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+input[type="text"], textarea, select {
+  font-family: var(--font-mono); font-size: 13px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%;
+}
+textarea { resize: vertical; min-height: 64px; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, .leaf:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+label.row { flex-wrap: nowrap; align-items: flex-start; }
+label.row input { margin-top: 3px; flex: none; }
+button {
+  font-family: var(--font-body); font-size: 13.5px; font-weight: 500; cursor: pointer;
+  border: 1px solid var(--ink); background: var(--ink); color: var(--panel); border-radius: 6px; padding: 7px 14px;
+}
+button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+button:disabled { opacity: .45; cursor: default; }
+.mono { font-family: var(--font-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
+.small { font-size: 12.5px; }
+.note { font-size: 13px; color: var(--muted); margin: 0; max-width: 70ch; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-family: var(--font-mono); font-size: 12.5px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.ok { color: var(--ok); }
+.pill.bad { color: var(--bad); }
+.hl { color: var(--accent); font-weight: 500; }
+.hl2 { color: var(--accent-2); font-weight: 500; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.tile .v { font-family: var(--font-mono); font-size: 18px; font-variant-numeric: tabular-nums; }
+.tile .k { font-size: 12px; color: var(--muted); }
+.scroll-x { overflow-x: auto; }
+
+/* bit registers */
+.regs { display: grid; grid-template-columns: max-content 1fr max-content; gap: 5px 10px; align-items: center; }
+.reg-name { font-family: var(--font-mono); font-size: 13px; width: 1.4em; }
+.reg-name.new { color: var(--accent); font-weight: 500; }
+.bits { display: grid; grid-template-columns: repeat(32, 1fr); gap: 2px; min-width: 0; }
+.bits span { aspect-ratio: 1; border-radius: 2px; background: var(--bit-off); min-width: 5px; }
+.bits span.on { background: var(--bit-on); }
+.bits span.chg { box-shadow: 0 0 0 1.5px var(--accent) inset; }
+.bits span.on.chg { background: var(--accent); box-shadow: none; }
+.reg-hex { font-family: var(--font-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.grid256 { display: grid; grid-template-columns: repeat(32, 1fr); gap: 2px; max-width: 520px; }
+.grid256 span { aspect-ratio: 1; border-radius: 2px; background: var(--bit-off); }
+.grid256 span.flip { background: var(--accent); }
+.bytes { display: flex; flex-wrap: wrap; gap: 3px; font-family: var(--font-mono); font-size: 11.5px; }
+.bytes span { padding: 1px 3px; border-radius: 3px; border: 1px solid var(--line); }
+.bytes .m { border-color: var(--accent-2); color: var(--accent-2); }
+.bytes .p1 { border-color: var(--accent); color: var(--accent); }
+.bytes .len { background: var(--bit-off); }
+.hash { font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; line-height: 1.6; }
+.hash .d { color: var(--accent); font-weight: 500; }
+.hash .z { color: var(--ok); font-weight: 500; }
+.formula { font-family: var(--font-mono); font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; line-height: 1.7; overflow-x: auto; white-space: pre-wrap; }
+canvas { width: 100%; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--muted); }
+.sw { display: inline-block; width: 12px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+
+/* merkle */
+.txlist { display: flex; flex-direction: column; gap: 5px; max-height: 300px; overflow-y: auto; padding-right: 4px; }
+.txlist label { display: grid; grid-template-columns: 2.6em 1fr; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.txlist label.sel { color: var(--accent); }
+svg text { font-family: var(--font-mono); }
+.leaf { cursor: pointer; }
+.steps { margin: 0; padding-left: 1.3em; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.8; }
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 820px) { .cmp { grid-template-columns: 1fr; } }
+.col { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.col h3 { font-family: var(--font-display); font-weight: 600; font-size: 16px; margin: 0; }
+.step { border-left: 2px solid var(--line); padding-left: 10px; display: flex; flex-direction: column; gap: 2px; }
+.step .t { font-size: 12px; color: var(--muted); }
+.step .v { overflow-wrap: anywhere; }
+.strike { text-decoration: line-through; opacity: .5; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+.tbl th { font-weight: 500; color: var(--muted); font-size: 12px; }
+.tbl .secret { display: none; }
+.tbl.reveal .secret { display: table-cell; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Hash and Signature Lab</h1>
+  <p>Twelve small experiments covering SHA-256, mining, merkle trees, elliptic curves, RSA and MimbleWimble, plus side-by-side labs on how Bitcoin and Ethereum hash, address, transact and agree on blocks. Everything is computed live in your browser from scratch, and the SHA-256 is checked against your browser's built-in implementation. The keys and ciphers here are deliberately tiny or simplified, so use them for learning only.</p>
+</header>
+<nav aria-label="Experiments">
+  <a href="#sha">01 SHA-256 rounds</a>
+  <a href="#avalanche">02 Avalanche</a>
+  <a href="#mining">03 Mining</a>
+  <a href="#difficulty">04 Difficulty adjustment</a>
+  <a href="#merkle">05 Merkle tree</a>
+  <a href="#curve">06 Elliptic curve signatures</a>
+  <a href="#rsa">07 RSA and PGP</a>
+  <a href="#mimblewimble">08 MimbleWimble</a>
+  <a href="#trees">09 Hashes and trees</a>
+  <a href="#addresses">10 Key to address</a>
+  <a href="#transactions">11 Coins vs accounts</a>
+  <a href="#consensus">12 Work vs stake</a>
+</nav>
+
+<!-- 01 SHA -->
+<section class="lab" id="sha">
+  <div class="lab-head"><span class="num">01</span><h2>SHA-256, round by round</h2>
+    <p>The hash state is eight 32-bit words, a to h. Each round computes a new a and a new e, and every other word moves one slot down unchanged. In a and e, the bits that differ from their old values are highlighted.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <label class="f" for="sha-in"><span class="top">Message</span>
+        <input type="text" id="sha-in" value="hello" autocomplete="off" spellcheck="false"></label>
+      <label class="f" for="sha-round"><span class="top">Round <b id="sha-round-v">0 / 64</b></span>
+        <input type="range" id="sha-round" min="0" max="64" value="0"></label>
+      <label class="f" id="sha-block-wrap" for="sha-block" hidden><span class="top">Block <b id="sha-block-v">1 / 1</b></span>
+        <input type="range" id="sha-block" min="0" max="0" value="0"></label>
+      <div class="row"><button id="sha-play">Play all rounds</button><button class="ghost" id="sha-reset">Back to round 0</button></div>
+      <div>
+        <div class="small muted" style="margin-bottom:6px">Padded block, 64 bytes: <span class="hl2">message</span>, <span class="hl">1-bit</span>, zeros, <span>length</span></div>
+        <div class="bytes" id="sha-bytes"></div>
+      </div>
+    </div>
+    <div class="out">
+      <div class="regs" id="sha-regs"></div>
+      <div class="formula" id="sha-formula"></div>
+      <dl class="kv">
+        <dt>SHA-256</dt><dd id="sha-hash"></dd>
+        <dt>Built-in check</dt><dd id="sha-check"></dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- 02 avalanche -->
+<section class="lab" id="avalanche">
+  <div class="lab-head"><span class="num">02</span><h2>Avalanche: flip one input bit</h2>
+    <p>Pick any single bit of the message and flip it. About half of the 256 output bits change, and you can't predict which ones.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <label class="f" for="av-in"><span class="top">Message</span>
+        <input type="text" id="av-in" value="hello" autocomplete="off" spellcheck="false"></label>
+      <label class="f" for="av-bit"><span class="top">Bit to flip <b id="av-bit-v"></b></span>
+        <input type="range" id="av-bit" min="0" max="39" value="39"></label>
+      <dl class="kv">
+        <dt>Original</dt><dd id="av-orig"></dd>
+        <dt>Flipped</dt><dd id="av-flip"></dd>
+      </dl>
+    </div>
+    <div class="out">
+      <div class="hash"><span class="muted small">hash(original)</span><br><span id="av-h1"></span></div>
+      <div class="hash"><span class="muted small">hash(flipped), changed hex digits highlighted</span><br><span id="av-h2"></span></div>
+      <div class="tiles"><div class="tile"><div class="v" id="av-count"></div><div class="k">output bits flipped (ideal is about 128)</div></div></div>
+      <div class="grid256" id="av-grid" aria-label="256 output bits; highlighted bits flipped"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 mining -->
+<section class="lab" id="mining">
+  <div class="lab-head"><span class="num">03</span><h2>Mining: find a nonce</h2>
+    <p>The block is valid only if its double SHA-256 hash starts with enough zero bits. Each extra zero bit halves the number of valid hashes, so the expected number of tries doubles.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <label class="f" for="mine-data"><span class="top">Block header data</span>
+        <textarea id="mine-data" spellcheck="false">block 101 | prev 00000a3f9c… | merkle 2a9f3200… | time 1763414400</textarea></label>
+      <label class="f" for="mine-bits"><span class="top">Difficulty, in leading zero bits <b id="mine-bits-v"></b></span>
+        <input type="range" id="mine-bits" min="0" max="20" value="12"></label>
+      <label class="f" for="mine-nonce"><span class="top">Nonce, try by hand <b id="mine-nonce-v"></b></span>
+        <input type="range" id="mine-nonce" min="0" max="100000" value="0"></label>
+      <div class="row"><button id="mine-go">Mine</button><button class="ghost" id="mine-stop" disabled>Stop</button></div>
+      <p class="note">Bitcoin's target currently needs roughly 75 to 80 leading zero bits. This page stops at 20 because a browser tab manages around 100,000 hashes a second, and a single mining machine does hundreds of trillions.</p>
+    </div>
+    <div class="out">
+      <div class="hash"><span class="muted small">sha256(sha256(data + nonce)), leading zero bits in green</span><br><span id="mine-hash"></span></div>
+      <div class="hash"><span class="muted small">first 32 bits</span><br><span id="mine-bin"></span></div>
+      <div class="row"><span id="mine-valid"></span></div>
+      <div class="tiles">
+        <div class="tile"><div class="v" id="mine-exp"></div><div class="k">expected tries (2<sup>bits</sup>)</div></div>
+        <div class="tile"><div class="v" id="mine-tries">0</div><div class="k">tries this run</div></div>
+        <div class="tile"><div class="v" id="mine-rate">–</div><div class="k">hashes per second</div></div>
+      </div>
+      <dl class="kv"><dt>Target</dt><dd id="mine-target"></dd></dl>
+    </div>
+  </div>
+</section>
+
+<!-- 04 difficulty -->
+<section class="lab" id="difficulty">
+  <div class="lab-head"><span class="num">04</span><h2>Difficulty adjustment under a hashrate shock</h2>
+    <p>600 simulated blocks with a 10-minute target. At block 200 the network's hashrate jumps by the multiplier, and at block 400 it returns to normal. Watch each algorithm chase it.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <label class="f" for="diff-algo"><span class="top">Algorithm</span>
+        <select id="diff-algo">
+          <option value="btc">Bitcoin-style: retarget every N blocks</option>
+          <option value="sma">Simple moving average, every block</option>
+          <option value="lwma">LWMA: recent blocks weighted more</option>
+        </select></label>
+      <label class="f" for="diff-win"><span class="top">Window N <b id="diff-win-v"></b></span>
+        <input type="range" id="diff-win" min="5" max="200" value="100"></label>
+      <label class="f" for="diff-mult"><span class="top">Hashrate change at block 200 <b id="diff-mult-v"></b></span>
+        <input type="range" id="diff-mult" min="0" max="8" value="6"></label>
+      <div class="row"><button class="ghost" id="diff-roll">Reroll luck</button></div>
+      <p class="note">Bitcoin's real window is 2016 blocks. It's scaled down here so you can see several retargets.</p>
+    </div>
+    <div class="out">
+      <div class="tiles">
+        <div class="tile"><div class="v" id="diff-avg"></div><div class="k">average block time, blocks 200 to 400</div></div>
+        <div class="tile"><div class="v" id="diff-worst"></div><div class="k">worst 12-block average</div></div>
+        <div class="tile"><div class="v" id="diff-settle"></div><div class="k">blocks to settle after the jump</div></div>
+      </div>
+      <canvas id="diff-canvas" height="340" aria-label="Chart of hashrate, difficulty and block time over 600 blocks"></canvas>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--muted)"></i>hashrate</span>
+        <span><i class="sw" style="background:var(--accent-2)"></i>difficulty</span>
+        <span><i class="sw" style="background:var(--accent)"></i>block time, 12-block average</span>
+        <span><i class="sw" style="background:var(--line)"></i>10-minute target</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 merkle -->
+<section class="lab" id="merkle">
+  <div class="lab-head"><span class="num">05</span><h2>Merkle tree and inclusion proof</h2>
+    <p>Choose a transaction to prove. The proof is just the highlighted sibling hashes. Edit any transaction and the computed root stops matching the root stored in the header.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <label class="f" for="mk-n"><span class="top">Transactions <b id="mk-n-v"></b></span>
+        <input type="range" id="mk-n" min="1" max="16" value="6"></label>
+      <label class="f" for="mk-t"><span class="top">Prove transaction <b id="mk-t-v"></b></span>
+        <input type="range" id="mk-t" min="0" max="5" value="2"></label>
+      <div class="txlist" id="mk-txs"></div>
+      <div class="row"><button class="ghost" id="mk-commit">Save current root to header</button></div>
+    </div>
+    <div class="out">
+      <div class="legend">
+        <span><i class="sw" style="background:var(--accent)"></i>path the verifier recomputes</span>
+        <span><i class="sw" style="background:var(--accent-2)"></i>proof hashes supplied</span>
+        <span><i class="sw" style="background:var(--muted)"></i>dashed: copy added for an odd count</span>
+      </div>
+      <div class="scroll-x"><svg id="mk-svg" role="img" aria-label="Merkle tree"></svg></div>
+      <dl class="kv">
+        <dt>Root in header</dt><dd id="mk-header"></dd>
+        <dt>Computed root</dt><dd id="mk-root"></dd>
+        <dt>Proof check</dt><dd id="mk-ok"></dd>
+      </dl>
+      <ol class="steps" id="mk-steps"></ol>
+    </div>
+  </div>
+</section>
+
+<!-- 06 curve -->
+<section class="lab" id="curve">
+  <div class="lab-head"><span class="num">06</span><h2>Elliptic curve keys and ECDSA</h2>
+    <p>Bitcoin's curve is y² = x³ + 7. Here it's calculated mod a small prime so you can see every point. Your public key is the generator point G added to itself d times. Move d and watch the public key jump around unpredictably; that unpredictability is why the public key doesn't reveal d.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <label class="f" for="ec-p"><span class="top">Prime modulus p <b id="ec-p-v"></b></span>
+        <input type="range" id="ec-p" min="0" max="23" value="4"></label>
+      <label class="f" for="ec-d"><span class="top">Private key d <b id="ec-d-v"></b></span>
+        <input type="range" id="ec-d" min="1" max="10" value="7"></label>
+      <label class="row small muted" for="ec-trail"><input type="checkbox" id="ec-trail" checked> Show the path G → 2G → … → dG</label>
+      <dl class="kv">
+        <dt>Points</dt><dd id="ec-count"></dd>
+        <dt>G</dt><dd id="ec-g"></dd>
+        <dt>Public key</dt><dd id="ec-q"></dd>
+      </dl>
+      <p class="note">This curve has <span id="ec-n"></span> multiples, so anyone can find d by trying them all. On the real curve there are about 1.16 × 10<sup>77</sup>.</p>
+    </div>
+    <div class="out">
+      <canvas id="ec-canvas" height="420" aria-label="Points of the curve modulo p"></canvas>
+    </div>
+  </div>
+  <div class="lab-body" style="border-top:1px solid var(--line)">
+    <div class="controls">
+      <strong style="font-family:var(--font-display);font-size:17px">Real ECDSA on secp256k1</strong>
+      <label class="f" for="sig-pass"><span class="top">Passphrase (hashed into the private key)</span>
+        <input type="text" id="sig-pass" value="alice's secret" autocomplete="off" spellcheck="false"></label>
+      <label class="f" for="sig-msg"><span class="top">Message to sign</span>
+        <input type="text" id="sig-msg" value="Pay Bob 1 BTC" autocomplete="off" spellcheck="false"></label>
+      <div class="row"><button id="sig-sign">Sign</button></div>
+      <label class="f" for="sig-check"><span class="top">Message the verifier receives (edit it to tamper)</span>
+        <input type="text" id="sig-check" value="Pay Bob 1 BTC" autocomplete="off" spellcheck="false"></label>
+      <label class="row small muted" for="sig-wrong"><input type="checkbox" id="sig-wrong"> Verify with someone else's public key</label>
+    </div>
+    <div class="out">
+      <dl class="kv">
+        <dt>Private key d</dt><dd id="sig-d"></dd>
+        <dt>Public key Q</dt><dd id="sig-q"></dd>
+        <dt>Signature r</dt><dd id="sig-r">press Sign</dd>
+        <dt>Signature s</dt><dd id="sig-s">–</dd>
+        <dt>Verify</dt><dd id="sig-v">–</dd>
+      </dl>
+      <div class="formula">sign:    z = sha256(msg)   k = nonce   r = (k·G).x   s = k⁻¹(z + r·d) mod n
+verify:  w = s⁻¹   X = (z·w)·G + (r·w)·Q   valid if X.x = r</div>
+      <p class="note">The nonce k comes from RFC 6979, which derives it from the key and the message. A nonce reused across two different messages would reveal the private key.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 07 rsa / pgp -->
+<section class="lab" id="rsa">
+  <div class="lab-head"><span class="num">07</span><h2>RSA and PGP-style hybrid encryption</h2>
+    <p>Pick two primes to build a key pair. Encrypting raises a number to e mod n, and decrypting raises it to d. PGP uses RSA only to lock a random session key, and that session key encrypts the actual message.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <label class="f" for="rsa-p"><span class="top">Prime p <b id="rsa-p-v"></b></span>
+        <input type="range" id="rsa-p" min="0" max="49" value="20"></label>
+      <label class="f" for="rsa-q"><span class="top">Prime q <b id="rsa-q-v"></b></span>
+        <input type="range" id="rsa-q" min="0" max="49" value="31"></label>
+      <dl class="kv">
+        <dt>n = p·q</dt><dd id="rsa-n"></dd>
+        <dt>φ = (p−1)(q−1)</dt><dd id="rsa-phi"></dd>
+        <dt>public e</dt><dd id="rsa-e"></dd>
+        <dt>private d</dt><dd id="rsa-d"></dd>
+      </dl>
+      <label class="f" for="rsa-m"><span class="top">Number to encrypt, m <b id="rsa-m-v"></b></span>
+        <input type="range" id="rsa-m" min="0" max="60000" value="42"></label>
+    </div>
+    <div class="out">
+      <div class="formula" id="rsa-formula"></div>
+      <strong style="font-family:var(--font-display);font-size:17px">RSA signature</strong>
+      <div class="row" style="align-items:flex-start">
+        <label class="f" for="rsa-smsg" style="flex:1;min-width:200px"><span class="top">Alice signs</span>
+          <input type="text" id="rsa-smsg" value="I owe Bob 5 dollars" autocomplete="off" spellcheck="false"></label>
+        <label class="f" for="rsa-vmsg" style="flex:1;min-width:200px"><span class="top">Bob receives</span>
+          <input type="text" id="rsa-vmsg" value="I owe Bob 5 dollars" autocomplete="off" spellcheck="false"></label>
+      </div>
+      <div class="formula" id="rsa-sig"></div>
+      <p class="note">With n this small, two different messages sometimes reduce to the same hash value mod n. With real key sizes, that never happens in practice.</p>
+    </div>
+  </div>
+  <div class="lab-body" style="border-top:1px solid var(--line)">
+    <div class="controls">
+      <strong style="font-family:var(--font-display);font-size:17px">PGP-style message</strong>
+      <label class="f" for="pgp-msg"><span class="top">Alice's message to Bob</span>
+        <input type="text" id="pgp-msg" value="meet at noon by the old oak" autocomplete="off" spellcheck="false"></label>
+      <label class="f" for="pgp-k"><span class="top">Random session key K <b id="pgp-k-v"></b></span>
+        <input type="range" id="pgp-k" min="2" max="60000" value="777"></label>
+      <label class="f" for="pgp-eve"><span class="top">Eve guesses a key <b id="pgp-eve-v"></b></span>
+        <input type="range" id="pgp-eve" min="2" max="60000" value="5"></label>
+      <div class="row"><button id="pgp-brute">Eve tries every key</button></div>
+    </div>
+    <div class="out">
+      <div class="formula" id="pgp-flow"></div>
+      <p class="note" id="pgp-brute-out">Eve can't unwrap K without Bob's private key, so she has to guess. With keys this small she can try every one.</p>
+      <p class="note">Real PGP uses AES with a 128- or 256-bit session key and RSA keys of 2048 bits or more, and checks the message hasn't been modified. Eve's search here takes milliseconds; at those key sizes it would outlast the universe.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 08 MimbleWimble -->
+<section class="lab" id="mimblewimble">
+  <div class="lab-head"><span class="num">08</span><h2>MimbleWimble: hidden amounts that still add up</h2>
+    <p>MimbleWimble (used by Grin and Litecoin's MWEB) never writes amounts on chain. Each output is a Pedersen commitment C = r·G + v·H, where v is the amount and r is a secret blinding number. Commitments can be added like numbers, so anyone can check that inputs equal outputs plus the fee without seeing a single amount.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <label class="f" for="mw-in"><span class="top">Alice's input coin <b id="mw-in-v"></b></span>
+        <input type="range" id="mw-in" min="10" max="100" value="50"></label>
+      <label class="f" for="mw-send"><span class="top">Send to Bob <b id="mw-send-v"></b></span>
+        <input type="range" id="mw-send" min="0" max="100" value="30"></label>
+      <label class="f" for="mw-fee"><span class="top">Fee <b id="mw-fee-v"></b></span>
+        <input type="range" id="mw-fee" min="0" max="10" value="2"></label>
+      <dl class="kv"><dt>Change to Alice</dt><dd id="mw-change"></dd></dl>
+      <label class="row small muted" for="mw-cheat"><input type="checkbox" id="mw-cheat"> Cheat: secretly make Bob's output 5 coins bigger</label>
+      <label class="row small muted" for="mw-reveal"><input type="checkbox" id="mw-reveal"> Show what only Alice and Bob know</label>
+      <div class="row"><button class="ghost" id="mw-new">New blinding factors</button></div>
+    </div>
+    <div class="out">
+      <table class="tbl">
+        <thead><tr><th>On chain</th><th>Commitment C = r·G + v·H</th><th class="secret">Amount v</th><th class="secret">Blinding r</th></tr></thead>
+        <tbody id="mw-rows"></tbody>
+      </table>
+      <div class="formula" id="mw-check"></div>
+      <p class="note">Real MimbleWimble also attaches a range proof (a Bulletproof) to every output to show its amount isn't negative. Without that, someone could create money with a −5 output; this demo leaves range proofs out.</p>
+    </div>
+  </div>
+  <div class="lab-body" style="border-top:1px solid var(--line)">
+    <div class="controls">
+      <strong style="font-family:var(--font-display);font-size:17px">Cut-through</strong>
+      <p class="note">Two transactions in one block: Alice pays Bob 25 (tx 1), then Bob pays Carol 24 (tx 2). Bob's output is created and spent in the same block, so MimbleWimble can delete it. The checks still pass, and the chain stays smaller.</p>
+      <label class="row small muted" for="mw-ct"><input type="checkbox" id="mw-ct" checked> Apply cut-through</label>
+    </div>
+    <div class="out">
+      <div class="cmp">
+        <div class="col"><h3>Inputs</h3><div id="mw-ct-in"></div></div>
+        <div class="col"><h3>Outputs</h3><div id="mw-ct-out"></div></div>
+      </div>
+      <div class="formula" id="mw-ct-check"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 09 hashing and trees -->
+<section class="lab" id="trees">
+  <div class="lab-head"><span class="num">09</span><h2>Hashes and trees: Bitcoin vs Ethereum</h2>
+    <p>Bitcoin hashes with double SHA-256 and commits to a block's transactions with a binary merkle tree (lab 05). Ethereum hashes with Keccak-256 and stores every account in a Merkle Patricia trie, a tree keyed by the hex digits (nibbles) of each key.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <label class="f" for="hx-in"><span class="top">Input</span>
+        <input type="text" id="hx-in" value="hello" autocomplete="off" spellcheck="false"></label>
+      <p class="note">Ethereum adopted Keccak before NIST finished the SHA-3 standard. NIST then changed one padding byte, so Keccak-256 and SHA3-256 give different results for the same input.</p>
+    </div>
+    <div class="out">
+      <dl class="kv">
+        <dt>Bitcoin · SHA-256(SHA-256(x))</dt><dd id="hx-btc"></dd>
+        <dt>Ethereum · Keccak-256(x)</dt><dd id="hx-eth"></dd>
+        <dt>NIST · SHA3-256(x)</dt><dd id="hx-sha3"></dd>
+      </dl>
+    </div>
+  </div>
+  <div class="lab-body" style="border-top:1px solid var(--line)">
+    <div class="controls">
+      <strong style="font-family:var(--font-display);font-size:17px">Merkle Patricia trie</strong>
+      <label class="f" for="mpt-in"><span class="top">Key = value, one per line</span>
+        <textarea id="mpt-in" rows="6" spellcheck="false">do = verb
+dog = puppy
+doge = coin
+horse = stallion</textarea></label>
+      <p class="note">These four pairs are the "puppy" case from Ethereum's official trie tests, and the root here matches the expected value. In the real state trie each key is keccak256(address), so every path is 64 nibbles long.</p>
+    </div>
+    <div class="out">
+      <div class="legend">
+        <span><i class="sw" style="background:var(--accent-2)"></i>branch: 16 slots, one per hex digit</span>
+        <span><i class="sw" style="background:var(--muted)"></i>extension: shared nibbles</span>
+        <span><i class="sw" style="background:var(--accent)"></i>leaf: remaining nibbles and value</span>
+      </div>
+      <div class="scroll-x"><svg id="mpt-svg" role="img" aria-label="Merkle Patricia trie"></svg></div>
+      <dl class="kv"><dt>State root</dt><dd id="mpt-root"></dd><dt>Test-suite root</dt><dd id="mpt-ref"></dd></dl>
+    </div>
+  </div>
+</section>
+
+<!-- 10 key to address -->
+<section class="lab" id="addresses">
+  <div class="lab-head"><span class="num">10</span><h2>From private key to address</h2>
+    <p>Bitcoin and Ethereum use the same curve, secp256k1, so one private key gives one public key on both. Each chain then hashes and encodes that public key its own way.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <label class="f" for="ad-pass"><span class="top">Passphrase (hashed into the private key)</span>
+        <input type="text" id="ad-pass" value="correct horse battery staple" autocomplete="off" spellcheck="false"></label>
+      <div class="row"><button class="ghost" id="ad-one">Use private key = 1</button></div>
+      <p class="note">Private key 1 is a published test vector, so you can compare these addresses with any wallet library. Never make a real wallet from a passphrase like this: "brain wallets" get guessed and emptied within minutes. Real wallets use 256 random bits, usually written as a BIP39 word list.</p>
+      <dl class="kv"><dt>Private key</dt><dd id="ad-d"></dd><dt>Public point</dt><dd id="ad-q"></dd></dl>
+    </div>
+    <div class="out">
+      <div class="cmp">
+        <div class="col" id="ad-btc"><h3>Bitcoin</h3></div>
+        <div class="col" id="ad-eth"><h3>Ethereum</h3></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 transactions -->
+<section class="lab" id="transactions">
+  <div class="lab-head"><span class="num">11</span><h2>Transactions: coins vs accounts</h2>
+    <p>Bitcoin has no balances, only unspent outputs (UTXOs). A payment destroys whole outputs and creates new ones. Ethereum stores a balance and a nonce for each account. A transaction is a signed instruction to move value from one account to another, and its fee is paid in gas.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <strong style="font-family:var(--font-display);font-size:17px">Bitcoin · UTXO model</strong>
+      <div class="f small muted">Alice's unspent outputs (pick the ones to spend)
+        <div id="ut-utxos" style="display:flex;flex-direction:column;gap:4px;margin-top:6px"></div></div>
+      <label class="f" for="ut-send"><span class="top">Pay Bob <b id="ut-send-v"></b></span>
+        <input type="range" id="ut-send" min="1" max="100" value="45"></label>
+      <label class="f" for="ut-rate"><span class="top">Fee rate <b id="ut-rate-v"></b></span>
+        <input type="range" id="ut-rate" min="1" max="100" value="12"></label>
+    </div>
+    <div class="out">
+      <div id="ut-status"></div>
+      <div class="cmp">
+        <div class="col"><h3>Spent (destroyed)</h3><div id="ut-ins" class="mono"></div></div>
+        <div class="col"><h3>Created</h3><div id="ut-outs" class="mono"></div></div>
+      </div>
+      <div><div class="small muted" style="margin-bottom:6px">Raw transaction bytes (unsigned; signatures go in the SegWit witness, left out here)</div>
+        <div class="bytes" id="ut-bytes"></div>
+        <div class="legend" id="ut-legend" style="margin-top:8px"></div></div>
+      <dl class="kv"><dt>txid</dt><dd id="ut-txid"></dd></dl>
+      <p class="note">The fee isn't written anywhere in the transaction. It's whatever the inputs add up to minus the outputs, and the miner keeps it.</p>
+    </div>
+  </div>
+  <div class="lab-body" style="border-top:1px solid var(--line)">
+    <div class="controls">
+      <strong style="font-family:var(--font-display);font-size:17px">Ethereum · account model (EIP-1559)</strong>
+      <label class="f" for="et-val"><span class="top">Send Bob <b id="et-val-v"></b></span>
+        <input type="range" id="et-val" min="0" max="190" value="50"></label>
+      <label class="f" for="et-base"><span class="top">Network base fee <b id="et-base-v"></b></span>
+        <input type="range" id="et-base" min="1" max="80" value="18"></label>
+      <label class="f" for="et-tip"><span class="top">Priority tip <b id="et-tip-v"></b></span>
+        <input type="range" id="et-tip" min="0" max="10" value="2"></label>
+      <label class="f" for="et-max"><span class="top">Max fee you'll pay <b id="et-max-v"></b></span>
+        <input type="range" id="et-max" min="1" max="100" value="40"></label>
+    </div>
+    <div class="out">
+      <div id="et-status"></div>
+      <div class="cmp">
+        <div class="col"><h3>Before</h3><div id="et-before" class="mono"></div></div>
+        <div class="col"><h3>After</h3><div id="et-after" class="mono"></div></div>
+      </div>
+      <table class="tbl"><thead><tr><th>Field</th><th>Value</th><th>RLP bytes</th></tr></thead><tbody id="et-fields"></tbody></table>
+      <dl class="kv">
+        <dt>Signing hash</dt><dd id="et-sighash"></dd>
+        <dt>Signature</dt><dd id="et-sig"></dd>
+        <dt>Signed tx</dt><dd id="et-raw"></dd>
+        <dt>Tx hash</dt><dd id="et-hash"></dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- 12 consensus -->
+<section class="lab" id="consensus">
+  <div class="lab-head"><span class="num">12</span><h2>Consensus: proof of work vs proof of stake</h2>
+    <p>Bitcoin picks the next block producer by hashing (lab 03), so blocks arrive at random intervals averaging 10 minutes. Ethereum picks a validator for every 12-second slot, weighted by staked ETH. Validators vote, and every 32 slots (one epoch) a checkpoint can be finalized.</p></div>
+  <div class="lab-body">
+    <div class="controls">
+      <label class="f" for="cs-att"><span class="top">Attacker's share of hashrate or stake <b id="cs-att-v"></b></span>
+        <input type="range" id="cs-att" min="0" max="50" value="20"></label>
+      <label class="f" for="cs-z"><span class="top">Bitcoin confirmations waited <b id="cs-z-v"></b></span>
+        <input type="range" id="cs-z" min="1" max="12" value="6"></label>
+      <label class="f" for="cs-off"><span class="top">Honest validators offline <b id="cs-off-v"></b></span>
+        <input type="range" id="cs-off" min="0" max="60" value="5"></label>
+      <label class="row small muted" for="cs-withhold"><input type="checkbox" id="cs-withhold" checked> Attacker refuses to vote</label>
+      <div class="row"><button class="ghost" id="cs-roll">Simulate another hour</button></div>
+    </div>
+    <div class="out">
+      <div class="tiles">
+        <div class="tile"><div class="v" id="cs-pow-p"></div><div class="k">chance the attacker reverses a Bitcoin payment after this many confirmations</div></div>
+        <div class="tile"><div class="v" id="cs-pow-t"></div><div class="k">expected wait for those confirmations</div></div>
+        <div class="tile"><div class="v" id="cs-pos-f"></div><div class="k">Ethereum finality (needs 2/3 of stake voting)</div></div>
+        <div class="tile"><div class="v" id="cs-pos-r"></div><div class="k">reverting a finalized Ethereum block</div></div>
+      </div>
+      <canvas id="cs-canvas" height="230" aria-label="One simulated hour of Bitcoin blocks and Ethereum slots"></canvas>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--accent-2)"></i>honest block</span>
+        <span><i class="sw" style="background:var(--accent)"></i>attacker block</span>
+        <span><i class="sw" style="background:var(--line)"></i>missed slot</span>
+        <span><i class="sw" style="background:var(--ok)"></i>finalized</span>
+      </div>
+      <p class="note" id="cs-note"></p>
+    </div>
+  </div>
+</section>
+</div>
+
+<script id="core">
+/* ── SHA-256 ───────────────────────────────────────────────────────────── */
+const H0 = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+const K = [
+0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+const enc = new TextEncoder();
+
+function padMsg(msg) {
+  const l = msg.length, total = Math.ceil((l + 9) / 64) * 64;
+  const buf = new Uint8Array(total); buf.set(msg); buf[l] = 0x80;
+  const dv = new DataView(buf.buffer), bits = l * 8;
+  dv.setUint32(total - 8, Math.floor(bits / 0x100000000)); dv.setUint32(total - 4, bits >>> 0);
+  return buf;
+}
+function schedule(dv, off) {
+  const W = new Int32Array(64);
+  for (let i = 0; i < 16; i++) W[i] = dv.getInt32(off + i * 4);
+  for (let i = 16; i < 64; i++) {
+    const x = W[i - 15], y = W[i - 2];
+    const s0 = rotr(x, 7) ^ rotr(x, 18) ^ (x >>> 3), s1 = rotr(y, 17) ^ rotr(y, 19) ^ (y >>> 10);
+    W[i] = (W[i - 16] + s0 + W[i - 7] + s1) | 0;
+  }
+  return W;
+}
+const KI = Int32Array.from(K), FW = new Int32Array(64), FH = new Int32Array(8);
+function sha256(msg) {            /* fast path: no allocations inside the rounds */
+  const buf = padMsg(msg), W = FW, Hs = FH;
+  for (let i = 0; i < 8; i++) Hs[i] = H0[i];
+  for (let off = 0; off < buf.length; off += 64) {
+    for (let i = 0; i < 16; i++) { const j = off + i * 4; W[i] = (buf[j] << 24) | (buf[j + 1] << 16) | (buf[j + 2] << 8) | buf[j + 3]; }
+    for (let i = 16; i < 64; i++) {
+      const x = W[i - 15], y = W[i - 2];
+      W[i] = (W[i - 16] + (((x >>> 7) | (x << 25)) ^ ((x >>> 18) | (x << 14)) ^ (x >>> 3)) + W[i - 7] +
+              (((y >>> 17) | (y << 15)) ^ ((y >>> 19) | (y << 13)) ^ (y >>> 10))) | 0;
+    }
+    let a = Hs[0], b = Hs[1], c = Hs[2], d = Hs[3], e = Hs[4], f = Hs[5], g = Hs[6], h = Hs[7];
+    for (let i = 0; i < 64; i++) {
+      const t1 = (h + (((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7))) + ((e & f) ^ (~e & g)) + KI[i] + W[i]) | 0;
+      const t2 = ((((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10))) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    Hs[0] = (Hs[0] + a) | 0; Hs[1] = (Hs[1] + b) | 0; Hs[2] = (Hs[2] + c) | 0; Hs[3] = (Hs[3] + d) | 0;
+    Hs[4] = (Hs[4] + e) | 0; Hs[5] = (Hs[5] + f) | 0; Hs[6] = (Hs[6] + g) | 0; Hs[7] = (Hs[7] + h) | 0;
+  }
+  const out = new Uint8Array(32);
+  for (let i = 0; i < 8; i++) { const v = Hs[i]; out[i * 4] = v >>> 24; out[i * 4 + 1] = (v >>> 16) & 255; out[i * 4 + 2] = (v >>> 8) & 255; out[i * 4 + 3] = v & 255; }
+  return out;
+}
+function sha256Trace(msg) {
+  const buf = padMsg(msg), dv = new DataView(buf.buffer);
+  let Hs = H0.map(x => x | 0);
+  const blocks = [];
+  for (let off = 0; off < buf.length; off += 64) {
+    const W = schedule(dv, off);
+    let [a, b, c, d, e, f, g, h] = Hs;
+    const states = [[a, b, c, d, e, f, g, h]], rounds = [];
+    for (let i = 0; i < 64; i++) {
+      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25), ch = (e & f) ^ (~e & g);
+      const t1 = (h + S1 + ch + K[i] + W[i]) | 0;
+      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22), mj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (S0 + mj) | 0;
+      rounds.push({ S1, ch, t1, S0, mj, t2, k: K[i], w: W[i], d, h });
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+      states.push([a, b, c, d, e, f, g, h]);
+    }
+    const next = Hs.map((x, j) => (x + states[64][j]) | 0);
+    blocks.push({ bytes: buf.slice(off, off + 64), states, rounds, start: Hs, end: next });
+    Hs = next;
+  }
+  const out = new Uint8Array(32), o = new DataView(out.buffer);
+  Hs.forEach((v, i) => o.setInt32(i * 4, v));
+  return { blocks, hash: out, padded: buf };
+}
+const sha256d = m => sha256(sha256(m));
+const hex = u8 => Array.from(u8, b => b.toString(16).padStart(2, "0")).join("");
+const hex32 = x => (x >>> 0).toString(16).padStart(8, "0");
+const concat = (a, b) => { const r = new Uint8Array(a.length + b.length); r.set(a); r.set(b, a.length); return r; };
+function leadingZeroBits(u8) {
+  let n = 0;
+  for (const byte of u8) { if (byte === 0) { n += 8; continue; } n += Math.clz32(byte) - 24; break; }
+  return n;
+}
+
+/* ── Merkle ─────────────────────────────────────────────────────────────── */
+function merkleLevels(leaves) {
+  let level = leaves.map(h => ({ h, dup: false }));
+  const levels = [];
+  while (true) {
+    if (level.length > 1 && level.length % 2) level = level.concat([{ h: level[level.length - 1].h, dup: true }]);
+    levels.push(level);
+    if (level.length === 1) return levels;
+    const nxt = [];
+    for (let i = 0; i < level.length; i += 2) nxt.push({ h: sha256d(concat(level[i].h, level[i + 1].h)), dup: false });
+    level = nxt;
+  }
+}
+function merkleProof(levels, index) {
+  const proof = [], path = new Set([`0:${index}`]), sibs = new Set();
+  for (let k = 0; k < levels.length - 1; k++) {
+    const s = index ^ 1;
+    proof.push({ h: levels[k][s].h, side: s < index ? "left" : "right" });
+    sibs.add(`${k}:${s}`); index >>= 1; path.add(`${k + 1}:${index}`);
+  }
+  return { proof, path, sibs };
+}
+
+/* ── BigInt helpers, secp256k1 ─────────────────────────────────────────── */
+const mod = (a, m) => ((a % m) + m) % m;
+function inv(a, m) {
+  let [r0, r1] = [mod(a, m), m], [s0, s1] = [1n, 0n];
+  while (r1) { const q = r0 / r1; [r0, r1] = [r1, r0 - q * r1]; [s0, s1] = [s1, s0 - q * s1]; }
+  return mod(s0, m);
+}
+function modpow(b, e, m) { let r = 1n; b = mod(b, m); while (e > 0n) { if (e & 1n) r = r * b % m; b = b * b % m; e >>= 1n; } return r; }
+const P = 2n ** 256n - 2n ** 32n - 977n;
+const N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
+const G = [0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798n,
+           0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8n];
+function ecAdd(p1, p2, p = P) {
+  if (!p1) return p2; if (!p2) return p1;
+  const [x1, y1] = p1, [x2, y2] = p2;
+  if (x1 === x2 && mod(y1 + y2, p) === 0n) return null;
+  const lam = (x1 === x2 && y1 === y2) ? mod(3n * x1 * x1 * inv(2n * y1, p), p) : mod((y2 - y1) * inv(x2 - x1, p), p);
+  const x3 = mod(lam * lam - x1 - x2, p);
+  return [x3, mod(lam * (x1 - x3) - y1, p)];
+}
+function ecMul(k, pt, p = P) { let r = null, a = pt; while (k > 0n) { if (k & 1n) r = ecAdd(r, a, p); a = ecAdd(a, a, p); k >>= 1n; } return r; }
+const big = u8 => BigInt("0x" + (hex(u8) || "0"));
+const toBytes32 = n => { const h = n.toString(16).padStart(64, "0"); return Uint8Array.from(h.match(/../g), x => parseInt(x, 16)); };
+function ecdsaSign(d, msg) {
+  const z = big(sha256(msg));
+  const k = rfc6979(d, sha256(msg));
+  const r = mod(ecMul(k, G)[0], N);
+  const s = mod(inv(k, N) * (z + r * d), N);
+  return [r, s];
+}
+function ecdsaVerify(Q, msg, [r, s]) {
+  const z = big(sha256(msg)), w = inv(s, N);
+  const X = ecAdd(ecMul(mod(z * w, N), G), ecMul(mod(r * w, N), Q));
+  return !!X && mod(X[0], N) === r;
+}
+function keystream(K, n) {
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i += 32) {
+    const block = sha256(concat(enc.encode("K=" + K + "|"), Uint8Array.of(i >> 8, i & 255)));
+    out.set(block.subarray(0, Math.min(32, n - i)), i);
+  }
+  return out;
+}
+const xorBytes = (a, b) => a.map((x, i) => x ^ b[i]);
+</script>
+<script id="core2">
+/* ── core2: Bitcoin / Ethereum / MimbleWimble primitives ─────────────────── */
+const concatAll = arr => { let n = 0; arr.forEach(a => n += a.length); const r = new Uint8Array(n); let o = 0; arr.forEach(a => { r.set(a, o); o += a.length; }); return r; };
+const fromHex = h => { h = h.replace(/^0x/, ""); if (h.length % 2) h = "0" + h; return Uint8Array.from(h.match(/../g) || [], x => parseInt(x, 16)); };
+function intBytes(n) { n = BigInt(n); if (n === 0n) return new Uint8Array(0); return fromHex(n.toString(16)); }
+
+/* Keccak-256 (Ethereum). Pad byte 0x01 = original Keccak; 0x06 = NIST SHA3. */
+const M64 = (1n << 64n) - 1n;
+const KROT = (() => { const r = Array(25).fill(0); let x = 1, y = 0; for (let t = 0; t < 24; t++) { r[x + 5 * y] = ((t + 1) * (t + 2) / 2) % 64; [x, y] = [y, (2 * x + 3 * y) % 5]; } return r; })();
+const KRC = (() => { let R = 1; const bit = () => { const b = R & 1; R <<= 1; if (R & 0x100) R ^= 0x171; return b; };
+  const out = []; for (let i = 0; i < 24; i++) { let c = 0n; for (let j = 0; j < 7; j++) if (bit()) c |= 1n << BigInt((1 << j) - 1); out.push(c); } return out; })();
+const rot64 = (v, n) => n ? ((v << BigInt(n)) | (v >> BigInt(64 - n))) & M64 : v;
+function keccakF(A) {
+  for (let rd = 0; rd < 24; rd++) {
+    const C = [0, 1, 2, 3, 4].map(x => A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20]);
+    for (let x = 0; x < 5; x++) { const D = C[(x + 4) % 5] ^ rot64(C[(x + 1) % 5], 1); for (let y = 0; y < 25; y += 5) A[x + y] ^= D; }
+    const B = Array(25);
+    for (let x = 0; x < 5; x++) for (let y = 0; y < 5; y++) B[y + 5 * ((2 * x + 3 * y) % 5)] = rot64(A[x + 5 * y], KROT[x + 5 * y]);
+    for (let x = 0; x < 5; x++) for (let y = 0; y < 25; y += 5) A[x + y] = (B[x + y] ^ (~B[(x + 1) % 5 + y] & B[(x + 2) % 5 + y])) & M64;
+    A[0] ^= KRC[rd];
+  }
+}
+function keccak256(msg, padByte = 0x01) {
+  const rate = 136, q = rate - (msg.length % rate), p = new Uint8Array(msg.length + q);
+  p.set(msg); p[msg.length] ^= padByte; p[p.length - 1] ^= 0x80;
+  const A = Array(25).fill(0n);
+  for (let off = 0; off < p.length; off += rate) {
+    for (let i = 0; i < 17; i++) { let v = 0n; for (let b = 7; b >= 0; b--) v = (v << 8n) | BigInt(p[off + i * 8 + b]); A[i] ^= v; }
+    keccakF(A);
+  }
+  const out = new Uint8Array(32);
+  for (let i = 0; i < 4; i++) { let v = A[i]; for (let b = 0; b < 8; b++) { out[i * 8 + b] = Number(v & 255n); v >>= 8n; } }
+  return out;
+}
+
+/* RIPEMD-160 (Bitcoin HASH160 = RIPEMD160(SHA256(x))) */
+function ripemd160(msg) {
+  const zl = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,7,4,13,1,10,6,15,3,12,0,9,5,2,14,11,8,3,10,14,4,9,15,8,1,2,7,0,6,13,11,5,12,1,9,11,10,0,8,12,4,13,3,7,15,14,5,6,2,4,0,5,9,7,12,2,10,14,1,3,8,11,6,15,13];
+  const zr = [5,14,7,0,9,2,11,4,13,6,15,8,1,10,3,12,6,11,3,7,0,13,5,10,14,15,8,12,4,9,1,2,15,5,1,3,7,14,6,9,11,8,12,2,10,0,4,13,8,6,4,1,3,11,15,0,5,12,2,13,9,7,10,14,12,15,10,4,1,5,8,7,6,2,13,14,0,3,9,11];
+  const sl = [11,14,15,12,5,8,7,9,11,13,14,15,6,7,9,8,7,6,8,13,11,9,7,15,7,12,15,9,11,7,13,12,11,13,6,7,14,9,13,15,14,8,13,6,5,12,7,5,11,12,14,15,14,15,9,8,9,14,5,6,8,6,5,12,9,15,5,11,6,8,13,12,5,12,13,14,11,8,5,6];
+  const sr = [8,9,9,11,13,15,15,5,7,7,8,11,14,14,12,6,9,13,15,7,12,8,9,11,7,7,12,7,6,15,13,11,9,7,15,11,8,6,6,14,12,13,5,14,13,13,7,5,15,5,8,11,14,14,6,14,6,9,12,9,12,5,15,8,8,5,12,9,12,5,14,6,8,13,6,5,15,13,11,11];
+  const KL = [0, 0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xa953fd4e], KR = [0x50a28be6, 0x5c4dd124, 0x6d703ef3, 0x7a6d76e9, 0];
+  const f = (j, x, y, z) => j < 16 ? x ^ y ^ z : j < 32 ? (x & y) | (~x & z) : j < 48 ? (x | ~y) ^ z : j < 64 ? (x & z) | (y & ~z) : x ^ (y | ~z);
+  const rotl = (x, n) => (x << n) | (x >>> (32 - n));
+  const l = msg.length, total = Math.ceil((l + 9) / 64) * 64, buf = new Uint8Array(total);
+  buf.set(msg); buf[l] = 0x80;
+  const bits = l * 8; for (let i = 0; i < 4; i++) buf[total - 8 + i] = (bits >>> (8 * i)) & 255;
+  let h = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0];
+  for (let off = 0; off < total; off += 64) {
+    const X = []; for (let i = 0; i < 16; i++) { const j = off + i * 4; X.push(buf[j] | (buf[j + 1] << 8) | (buf[j + 2] << 16) | (buf[j + 3] << 24)); }
+    let [al, bl, cl, dl, el] = h, [ar, br, cr, dr, er] = h;
+    for (let j = 0; j < 80; j++) {
+      let T = (rotl((al + f(j, bl, cl, dl) + X[zl[j]] + KL[j >> 4]) | 0, sl[j]) + el) | 0;
+      al = el; el = dl; dl = rotl(cl, 10); cl = bl; bl = T;
+      T = (rotl((ar + f(79 - j, br, cr, dr) + X[zr[j]] + KR[j >> 4]) | 0, sr[j]) + er) | 0;
+      ar = er; er = dr; dr = rotl(cr, 10); cr = br; br = T;
+    }
+    const T = (h[1] + cl + dr) | 0;
+    h[1] = (h[2] + dl + er) | 0; h[2] = (h[3] + el + ar) | 0; h[3] = (h[4] + al + br) | 0; h[4] = (h[0] + bl + cr) | 0; h[0] = T;
+  }
+  const out = new Uint8Array(20);
+  h.forEach((v, i) => { for (let b = 0; b < 4; b++) out[i * 4 + b] = (v >>> (8 * b)) & 255; });
+  return out;
+}
+const hash160 = b => ripemd160(sha256(b));
+
+/* Base58Check (legacy "1..." addresses) */
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function base58check(payload) {
+  const data = concat(payload, sha256d(payload).subarray(0, 4));
+  let n = big(data), s = "";
+  while (n > 0n) { s = B58[Number(n % 58n)] + s; n /= 58n; }
+  for (const b of data) { if (b) break; s = "1" + s; }
+  return s;
+}
+
+/* bech32 / bech32m (SegWit "bc1q..." / Taproot "bc1p...") */
+const B32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+function bech32Polymod(values) {
+  const GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]; let chk = 1;
+  for (const v of values) { const b = chk >>> 25; chk = ((chk & 0x1ffffff) << 5) ^ v; for (let i = 0; i < 5; i++) if ((b >>> i) & 1) chk ^= GEN[i]; }
+  return chk >>> 0;
+}
+function segwitAddress(hrp, version, program) {
+  const conv = []; let acc = 0, bits = 0;
+  for (const b of program) { acc = (acc << 8) | b; bits += 8; while (bits >= 5) { bits -= 5; conv.push((acc >>> bits) & 31); } }
+  if (bits) conv.push((acc << (5 - bits)) & 31);
+  const data = [version, ...conv];
+  const hx = [...[...hrp].map(c => c.charCodeAt(0) >> 5), 0, ...[...hrp].map(c => c.charCodeAt(0) & 31)];
+  const C = version === 0 ? 1 : 0x2bc830a3;
+  const pm = bech32Polymod([...hx, ...data, 0, 0, 0, 0, 0, 0]) ^ C;
+  const chk = []; for (let i = 0; i < 6; i++) chk.push((pm >>> (5 * (5 - i))) & 31);
+  return hrp + "1" + [...data, ...chk].map(v => B32[v]).join("");
+}
+
+/* Points, Taproot tweak */
+const compressPub = Q => concat(Uint8Array.of(Q[1] & 1n ? 3 : 2), toBytes32(Q[0]));
+function liftX(x) { const y2 = mod(x * x * x + 7n, P); let y = modpow(y2, (P + 1n) / 4n, P); if (mod(y * y, P) !== y2) return null; if (y & 1n) y = P - y; return [x, y]; }
+function taggedHash(tag, msg) { const t = sha256(enc.encode(tag)); return sha256(concatAll([t, t, msg])); }
+function taprootOutputKey(internalX) {
+  const Pt = liftX(internalX), t = big(taggedHash("TapTweak", toBytes32(internalX)));
+  return ecAdd(Pt, ecMul(t, G));
+}
+
+/* HMAC + RFC 6979 deterministic nonce + recoverable ECDSA */
+function hmacSha256(key, msg) {
+  if (key.length > 64) key = sha256(key);
+  const k = new Uint8Array(64); k.set(key);
+  return sha256(concat(k.map(b => b ^ 0x5c), sha256(concat(k.map(b => b ^ 0x36), msg))));
+}
+function rfc6979(d, hash) {
+  const x = toBytes32(d), hb = toBytes32(mod(big(hash), N));
+  let V = new Uint8Array(32).fill(1), Kk = new Uint8Array(32);
+  Kk = hmacSha256(Kk, concatAll([V, [0], x, hb])); V = hmacSha256(Kk, V);
+  Kk = hmacSha256(Kk, concatAll([V, [1], x, hb])); V = hmacSha256(Kk, V);
+  for (;;) { V = hmacSha256(Kk, V); const k = big(V); if (k > 0n && k < N) return k; Kk = hmacSha256(Kk, concat(V, Uint8Array.of(0))); V = hmacSha256(Kk, V); }
+}
+function signHash(d, hash) {
+  const z = mod(big(hash), N), k = rfc6979(d, hash), R = ecMul(k, G);
+  const r = mod(R[0], N); let s = mod(inv(k, N) * (z + r * d), N), rec = Number(R[1] & 1n);
+  if (s > N / 2n) { s = N - s; rec ^= 1; }          // "low-s" rule (BIP 62 / EIP-2)
+  return { r, s, rec };
+}
+function verifyHash(Q, hash, r, s) {
+  const z = mod(big(hash), N), w = inv(s, N);
+  const X = ecAdd(ecMul(mod(z * w, N), G), ecMul(mod(r * w, N), Q));
+  return !!X && mod(X[0], N) === r;
+}
+
+/* Ethereum address with EIP-55 checksum */
+function ethAddress(Q) {
+  const h = keccak256(concat(toBytes32(Q[0]), toBytes32(Q[1])));
+  const a = hex(h.subarray(12)), ch = hex(keccak256(enc.encode(a)));
+  return { raw: h, checksummed: "0x" + [...a].map((c, i) => parseInt(ch[i], 16) >= 8 ? c.toUpperCase() : c).join("") };
+}
+
+/* RLP (Ethereum's serialization) */
+function rlpLen(len, off) { if (len < 56) return Uint8Array.of(off + len); const lb = intBytes(len); return concat(Uint8Array.of(off + 55 + lb.length), lb); }
+function rlpBytes(b) { if (b.length === 1 && b[0] < 0x80) return b; return concat(rlpLen(b.length, 0x80), b); }
+function rlpList(items) { const body = concatAll(items); return concat(rlpLen(body.length, 0xc0), body); }
+const rlpInt = n => rlpBytes(intBytes(n));
+
+/* Merkle Patricia trie (Ethereum state/tx/receipt tries) */
+const toNibbles = b => { const r = []; for (const x of b) r.push(x >> 4, x & 15); return r; };
+function hpEncode(nibs, leaf) {
+  const odd = nibs.length & 1, flag = (leaf ? 2 : 0) + odd;
+  const arr = odd ? [flag, ...nibs] : [flag, 0, ...nibs];
+  const out = new Uint8Array(arr.length / 2); for (let i = 0; i < out.length; i++) out[i] = (arr[2 * i] << 4) | arr[2 * i + 1];
+  return out;
+}
+/* Returns {enc, node} where node is a description for drawing. */
+function mptBuild(items, depth) {
+  if (!items.length) return null;
+  if (items.length === 1) {
+    const rest = items[0].k.slice(depth);
+    const enc_ = rlpList([rlpBytes(hpEncode(rest, true)), rlpBytes(items[0].v)]);
+    return { enc: enc_, node: { type: "leaf", path: rest, key: items[0].label, value: items[0].vlabel } };
+  }
+  let pre = 0;
+  for (;;) {
+    const c = items[0].k[depth + pre];
+    if (c === undefined || !items.every(it => it.k[depth + pre] === c)) break;
+    pre++;
+  }
+  if (pre > 0) {
+    const child = mptBuild(items, depth + pre);
+    const enc_ = rlpList([rlpBytes(hpEncode(items[0].k.slice(depth, depth + pre), false)), mptRef(child.enc)]);
+    return { enc: enc_, node: { type: "ext", path: items[0].k.slice(depth, depth + pre), children: [child.node] } };
+  }
+  const slots = [], kids = []; let value = new Uint8Array(0), vlabel = null;
+  for (let n = 0; n < 16; n++) {
+    const sub = items.filter(it => it.k[depth] === n);
+    const c = mptBuild(sub, depth + 1);
+    slots.push(c ? mptRef(c.enc) : rlpBytes(new Uint8Array(0)));
+    if (c) kids.push({ nib: n, node: c.node });
+  }
+  const ends = items.find(it => it.k.length === depth);
+  if (ends) { value = ends.v; vlabel = ends.key; }
+  const enc_ = rlpList([...slots, rlpBytes(value)]);
+  return { enc: enc_, node: { type: "branch", children: kids, value: ends ? ends.vlabel : null, valueKey: ends ? ends.label : null } };
+}
+const mptRef = encd => encd.length < 32 ? encd : rlpBytes(keccak256(encd));
+function mptRoot(pairs) {
+  const items = pairs.map(([k, v]) => ({ k: toNibbles(enc.encode(k)), v: enc.encode(v), label: k, vlabel: v }))
+    .sort((a, b) => a.label < b.label ? -1 : 1);
+  const r = mptBuild(items, 0);
+  return r ? { root: keccak256(r.enc), tree: r.node } : { root: keccak256(Uint8Array.of(0x80)), tree: null };
+}
+
+/* Pedersen commitments for MimbleWimble: C = r·G + v·H, where nobody knows log_G(H) */
+const H_GEN = (() => { let x = mod(big(sha256(enc.encode("MimbleWimble H: nothing up my sleeve"))), P);
+  for (;;) { const pt = liftX(x); if (pt) return pt; x = mod(x + 1n, P); } })();
+const negPt = Q => Q && [Q[0], mod(-Q[1], P)];
+const commit = (v, r) => ecAdd(ecMul(mod(BigInt(r), N), G), v ? ecMul(mod(BigInt(v), N), H_GEN) : null);
+const ptHex = Q => Q ? hex(compressPub(Q)) : "point at infinity";
+const ptEq = (a, b) => (!a && !b) || (a && b && a[0] === b[0] && a[1] === b[1]);
+/* Schnorr signature proving knowledge of the excess x (the kernel signature) */
+function schnorrSign(x, msg) {
+  const k = mod(big(sha256(concat(toBytes32(x), msg))), N) || 1n, R = ecMul(k, G), X = ecMul(x, G);
+  const e = mod(big(sha256(concatAll([compressPub(R), compressPub(X), msg]))), N);
+  return { R, s: mod(k + e * x, N) };
+}
+function schnorrVerify(X, msg, { R, s }) {
+  const e = mod(big(sha256(concatAll([compressPub(R), compressPub(X), msg]))), N);
+  return ptEq(ecMul(s, G), ecAdd(R, ecMul(e, X)));
+}
+</script>
+
+<script>
+const $ = id => document.getElementById(id);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = n => n.toLocaleString("en-US");
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const redrawers = [];
+
+/* 01 SHA rounds */
+(() => {
+  const regsEl = $("sha-regs"), names = "abcdefgh";
+  const rows = [];
+  for (let i = 0; i < 8; i++) {
+    const n = document.createElement("span"); n.className = "reg-name"; n.textContent = names[i];
+    const b = document.createElement("div"); b.className = "bits";
+    for (let j = 0; j < 32; j++) b.appendChild(document.createElement("span"));
+    const h = document.createElement("span"); h.className = "reg-hex";
+    regsEl.append(n, b, h); rows.push({ n, b, h });
+  }
+  let trace, timer = null;
+  function compute() {
+    trace = sha256Trace(enc.encode($("sha-in").value));
+    const nb = trace.blocks.length;
+    $("sha-block-wrap").hidden = nb < 2;
+    $("sha-block").max = nb - 1;
+    if (+$("sha-block").value > nb - 1) $("sha-block").value = 0;
+    const hh = hex(trace.hash);
+    $("sha-hash").textContent = hh;
+    $("sha-check").textContent = "checking…";
+    if (crypto.subtle) crypto.subtle.digest("SHA-256", enc.encode($("sha-in").value)).then(buf => {
+      const ok = hex(new Uint8Array(buf)) === hh;
+      $("sha-check").innerHTML = ok ? '<span class="pill ok">matches crypto.subtle</span>' : '<span class="pill bad">mismatch</span>';
+    }).catch(() => { $("sha-check").textContent = "not available in this browser"; });
+    else $("sha-check").textContent = "not available in this browser";
+    render();
+  }
+  function render() {
+    const bi = +$("sha-block").value, r = +$("sha-round").value, blk = trace.blocks[bi];
+    $("sha-block-v").textContent = `${bi + 1} / ${trace.blocks.length}`;
+    $("sha-round-v").textContent = `${r} / 64`;
+    const st = blk.states[r], prev = r > 0 ? blk.states[r - 1] : st;
+    rows.forEach((row, i) => {
+      const x = st[i] >>> 0, px = (i === 0 || i === 4 ? prev[i] : prev[i - 1]) >>> 0;
+      for (let j = 0; j < 32; j++) {
+        const bit = (x >>> (31 - j)) & 1, pbit = (px >>> (31 - j)) & 1;
+        row.b.children[j].className = (bit ? "on" : "") + (r > 0 && bit !== pbit ? " chg" : "");
+      }
+      row.h.textContent = hex32(x);
+      row.n.className = "reg-name" + (r > 0 && (i === 0 || i === 4) ? " new" : "");
+    });
+    let f;
+    if (r === 0) {
+      f = bi === 0 ? "Starting state: the first 32 bits of the fractional parts of\nthe square roots of the first 8 primes (2, 3, 5, 7, 11, 13, 17, 19)."
+                   : "Starting state = the result of block " + bi + ".";
+      f += "\nMove the slider to run round 1.";
+    } else {
+      const R = blk.rounds[r - 1];
+      f = `Round ${r}:\n` +
+        `  Σ1(e) = ${hex32(R.S1)}   Ch(e,f,g) = ${hex32(R.ch)}\n  K[${r - 1}] = ${hex32(R.k)}   W[${r - 1}] = ${hex32(R.w)}\n` +
+        `  T1 = h + Σ1 + Ch + K + W        = ${hex32(R.t1)}   (wrapped at 2³²)\n` +
+        `  Σ0(a) = ${hex32(R.S0)}   Maj(a,b,c) = ${hex32(R.mj)}\n` +
+        `  T2 = Σ0 + Maj                   = ${hex32(R.t2)}\n` +
+        `  new a = T1 + T2 = ${hex32(st[0])}     new e = d + T1 = ${hex32(st[4])}\n` +
+        `  b, c, d = old a, b, c     f, g, h = old e, f, g`;
+      if (r === 64) f += `\n\nThen add the starting state back in:\n  ${blk.end.map(hex32).join(" ")}`;
+    }
+    $("sha-formula").textContent = f;
+    const bytes = $("sha-bytes"), len = $("sha-in").value.length, ml = enc.encode($("sha-in").value).length;
+    bytes.innerHTML = "";
+    Array.from(blk.bytes).forEach((b, i) => {
+      const g = bi * 64 + i, s = document.createElement("span");
+      s.textContent = b.toString(16).padStart(2, "0");
+      const total = trace.padded.length;
+      s.className = g < ml ? "m" : g === ml ? "p1" : g >= total - 8 ? "len" : "";
+      bytes.appendChild(s);
+    });
+  }
+  $("sha-in").addEventListener("input", compute);
+  $("sha-round").addEventListener("input", render);
+  $("sha-block").addEventListener("input", render);
+  $("sha-reset").addEventListener("click", () => { stop(); $("sha-round").value = 0; render(); });
+  function stop() { clearInterval(timer); timer = null; $("sha-play").textContent = "Play all rounds"; }
+  $("sha-play").addEventListener("click", () => {
+    if (timer) return stop();
+    if (+$("sha-round").value >= 64) $("sha-round").value = 0;
+    $("sha-play").textContent = "Pause";
+    timer = setInterval(() => {
+      const v = +$("sha-round").value + 1; $("sha-round").value = v; render();
+      if (v >= 64) stop();
+    }, 140);
+  });
+  compute();
+})();
+
+/* 02 avalanche */
+(() => {
+  const grid = $("av-grid");
+  for (let i = 0; i < 256; i++) grid.appendChild(document.createElement("span"));
+  function render() {
+    const m = enc.encode($("av-in").value || " ");
+    const sl = $("av-bit"); sl.max = m.length * 8 - 1; if (+sl.value > +sl.max) sl.value = sl.max;
+    const bit = +sl.value, byte = bit >> 3, mask = 0x80 >> (bit & 7);
+    const m2 = m.slice(); m2[byte] ^= mask;
+    $("av-bit-v").textContent = `byte ${byte}, bit ${7 - (bit & 7)}`;
+    const show = u => Array.from(u, (b, i) => i === byte ? `<span class="hl">${b.toString(2).padStart(8, "0")}</span>` : b.toString(16).padStart(2, "0")).join(" ");
+    $("av-orig").innerHTML = show(m); $("av-flip").innerHTML = show(m2);
+    const h1 = sha256(m), h2 = sha256(m2), x1 = hex(h1), x2 = hex(h2);
+    $("av-h1").textContent = x1;
+    $("av-h2").innerHTML = Array.from(x2, (c, i) => c !== x1[i] ? `<span class="d">${c}</span>` : c).join("");
+    let n = 0;
+    for (let i = 0; i < 256; i++) {
+      const f = ((h1[i >> 3] ^ h2[i >> 3]) >> (7 - (i & 7))) & 1; n += f;
+      grid.children[i].className = f ? "flip" : "";
+    }
+    $("av-count").textContent = `${n} / 256`;
+  }
+  $("av-in").addEventListener("input", render); $("av-bit").addEventListener("input", render);
+  render();
+})();
+
+/* 03 mining */
+(() => {
+  let running = false, tries = 0, t0 = 0;
+  const data = () => $("mine-data").value;
+  const hashFor = n => sha256d(enc.encode(data() + "|nonce=" + n));
+  function show(n) {
+    const bits = +$("mine-bits").value, h = hashFor(n), x = hex(h), lz = leadingZeroBits(h);
+    $("mine-nonce-v").textContent = fmt(n);
+    $("mine-bits-v").textContent = bits;
+    $("mine-exp").textContent = fmt(2 ** bits);
+    const zHex = Math.floor(lz / 4);
+    $("mine-hash").innerHTML = `<span class="z">${x.slice(0, zHex)}</span>${x.slice(zHex)}`;
+    const b32 = ((h[0] << 24) | (h[1] << 16) | (h[2] << 8) | h[3]) >>> 0;
+    const bs = b32.toString(2).padStart(32, "0");
+    $("mine-bin").innerHTML = `<span class="z">${bs.slice(0, Math.min(lz, 32))}</span>${bs.slice(Math.min(lz, 32))} <span class="muted">(${lz} leading zeros)</span>`;
+    const ok = lz >= bits;
+    $("mine-valid").innerHTML = ok ? `<span class="pill ok">valid: ${lz} ≥ ${bits} zero bits</span>` : `<span class="pill bad">invalid: ${lz} &lt; ${bits} zero bits</span>`;
+    const t = bits === 0 ? "f".repeat(64) : ("0".repeat(Math.floor(bits / 4)) + (bits % 4 ? (15 >> (bits % 4)).toString(16) : "") ).padEnd(64, "f");
+    $("mine-target").textContent = `hash < ${t.slice(0, 64)}`;
+    return ok;
+  }
+  function stop() { running = false; $("mine-go").disabled = false; $("mine-stop").disabled = true; }
+  $("mine-go").addEventListener("click", () => {
+    running = true; tries = 0; t0 = performance.now();
+    $("mine-go").disabled = true; $("mine-stop").disabled = false;
+    const bits = +$("mine-bits").value, d = data();
+    let n = 0;
+    (function step() {
+      if (!running) return;
+      const end = performance.now() + 30;
+      while (performance.now() < end) {
+        for (let i = 0; i < 300; i++, n++) {
+          tries++;
+          if (leadingZeroBits(sha256d(enc.encode(d + "|nonce=" + n))) >= bits) {
+            const sl = $("mine-nonce"); if (n > +sl.max) sl.max = n; sl.value = n;
+            show(n); finish(); return;
+          }
+        }
+      }
+      finish(true); requestAnimationFrame(step);
+    })();
+    function finish(cont) {
+      $("mine-tries").textContent = fmt(tries);
+      const s = (performance.now() - t0) / 1000;
+      if (s > 0.05) $("mine-rate").textContent = fmt(Math.round(tries / s));
+      if (!cont) stop();
+    }
+  });
+  $("mine-stop").addEventListener("click", stop);
+  ["mine-data", "mine-bits", "mine-nonce"].forEach(id => $(id).addEventListener("input", () => show(+$("mine-nonce").value)));
+  show(0);
+})();
+
+/* 04 difficulty adjustment */
+(() => {
+  const MULTS = [0.25, 0.5, 0.75, 1.5, 2, 3, 4, 6, 8];
+  let seed = 7;
+  function rng(s) { return () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function simulate() {
+    const algo = $("diff-algo").value, Nw = +$("diff-win").value, mult = MULTS[+$("diff-mult").value];
+    const R = rng(seed), T = 10, B = 600;
+    const H = [], D = [], times = [];
+    let d = 1;
+    for (let i = 0; i < B; i++) {
+      const hr = i >= 200 && i < 400 ? mult : 1;
+      H.push(hr); D.push(d);
+      const t = -Math.log(1 - R()) * T * d / hr; times.push(t);
+      const n = i + 1;
+      if (algo === "btc") {
+        if (n % Nw === 0) { const sum = times.slice(n - Nw).reduce((a, b) => a + b, 0); d *= Math.min(4, Math.max(0.25, Nw * T / sum)); }
+      } else {
+        const w = Math.min(Nw, n), ts = times.slice(n - w), ds = D.slice(n - w);
+        const avgD = ds.reduce((a, b) => a + b, 0) / w;
+        let st;
+        if (algo === "sma") st = ts.reduce((a, b) => a + b, 0) / w;
+        else { let num = 0, den = 0; ts.forEach((t, j) => { num += (j + 1) * t; den += j + 1; }); st = num / den; }
+        d = avgD * T / Math.max(st, 0.01);
+      }
+    }
+    return { H, D, times, mult, T };
+  }
+  function rolling(a, w) { return a.map((_, i) => { const s = a.slice(Math.max(0, i - w + 1), i + 1); return s.reduce((x, y) => x + y, 0) / s.length; }); }
+  function draw() {
+    const { H, D, times, mult, T } = simulate();
+    $("diff-win-v").textContent = $("diff-win").value + " blocks";
+    $("diff-mult-v").textContent = "×" + mult;
+    const roll = rolling(times, 12);
+    const mid = times.slice(200, 400), avg = mid.reduce((a, b) => a + b, 0) / mid.length;
+    $("diff-avg").textContent = avg.toFixed(1) + " min";
+    const worst = roll.slice(12).reduce((m, v) => Math.abs(v - T) > Math.abs(m - T) ? v : m, T);
+    $("diff-worst").textContent = worst.toFixed(1) + " min";
+    let settle = null;
+    for (let i = 200; i < 400; i++) { if (Math.abs(D[i] - mult) / mult < 0.2) { let ok = true; for (let j = i; j < Math.min(i + 20, 400); j++) if (Math.abs(D[j] - mult) / mult > 0.3) ok = false; if (ok) { settle = i - 200; break; } } }
+    $("diff-settle").textContent = settle === null ? "never" : settle + " blocks";
+
+    const cv = $("diff-canvas"), dpr = window.devicePixelRatio || 1, W = cv.clientWidth, Ht = 340;
+    cv.width = W * dpr; cv.height = Ht * dpr; cv.style.height = Ht + "px";
+    const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, Ht);
+    const L = 44, Rm = 10, top1 = 10, h1 = 130, top2 = 175, h2 = 135;
+    const xs = i => L + (W - L - Rm) * i / (times.length - 1);
+    ctx.font = "11px " + css("--font-mono"); ctx.lineWidth = 1;
+    const ink = css("--muted"), line = css("--line");
+    const maxTop = Math.max(...H, ...D) * 1.1;
+    const y1 = v => top1 + h1 - h1 * v / maxTop;
+    const maxT = Math.max(30, Math.min(80, Math.max(...roll) * 1.1));
+    const y2 = v => top2 + h2 - h2 * Math.min(v, maxT) / maxT;
+    function axis(top, h, max, lab, unit) {
+      ctx.strokeStyle = line; ctx.fillStyle = ink;
+      for (let k = 0; k <= 4; k++) { const y = top + h - h * k / 4; ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(W - Rm, y); ctx.stroke(); ctx.fillText((max * k / 4).toFixed(max < 10 ? 1 : 0) + unit, 2, y + 4); }
+      ctx.fillText(lab, L + 4, top + 12);
+    }
+    axis(top1, h1, maxTop, "hashrate and difficulty (relative)", "");
+    axis(top2, h2, maxT, "minutes per block", "");
+    [200, 400].forEach(b => { ctx.strokeStyle = line; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(xs(b), top1); ctx.lineTo(xs(b), top2 + h2); ctx.stroke(); ctx.setLineDash([]); });
+    ctx.fillStyle = ink; [0, 200, 400, 599].forEach(b => ctx.fillText(String(b), xs(b) - (b ? 10 : 0), top2 + h2 + 16));
+    function plot(arr, y, color, width, dash) { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash || []); ctx.beginPath(); arr.forEach((v, i) => i ? ctx.lineTo(xs(i), y(v)) : ctx.moveTo(xs(i), y(v))); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1; }
+    plot(H, y1, ink, 1.5, [5, 4]);
+    plot(D, y1, css("--accent-2"), 2);
+    ctx.strokeStyle = line; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(L, y2(T)); ctx.lineTo(W - Rm, y2(T)); ctx.stroke(); ctx.lineWidth = 1;
+    plot(roll, y2, css("--accent"), 1.75);
+  }
+  ["diff-algo", "diff-win", "diff-mult"].forEach(id => $(id).addEventListener("input", draw));
+  $("diff-roll").addEventListener("click", () => { seed = (seed * 7919 + 13) % 100003; draw(); });
+  redrawers.push(draw); draw();
+})();
+
+/* 05 merkle */
+(() => {
+  const PEOPLE = ["alice", "bob", "carol", "dave", "erin", "frank", "grace", "heidi", "ivan", "judy", "mallory", "niaj", "olivia", "peggy", "rupert", "sybil", "trent"];
+  const txs = Array.from({ length: 16 }, (_, i) => `${PEOPLE[i]} -> ${PEOPLE[i + 1]} ${((i * 37 % 50) / 10 + 0.1).toFixed(1)} BTC`);
+  let headerRoot = null;
+  const list = $("mk-txs");
+  function buildInputs() {
+    const n = +$("mk-n").value; list.innerHTML = "";
+    for (let i = 0; i < n; i++) {
+      const l = document.createElement("label"); l.htmlFor = "mk-tx" + i;
+      l.innerHTML = `<span>tx${i}</span><input type="text" id="mk-tx${i}" spellcheck="false" autocomplete="off">`;
+      const inp = l.querySelector("input"); inp.value = txs[i];
+      inp.addEventListener("input", () => { txs[i] = inp.value; render(); });
+      list.appendChild(l);
+    }
+  }
+  function computeLevels() { const n = +$("mk-n").value; return merkleLevels(txs.slice(0, n).map(t => sha256d(enc.encode(t)))); }
+  function render() {
+    const n = +$("mk-n").value, t = $("mk-t"); t.max = n - 1; if (+t.value > n - 1) t.value = n - 1;
+    const target = +t.value;
+    $("mk-n-v").textContent = n; $("mk-t-v").textContent = "tx" + target;
+    Array.from(list.children).forEach((l, i) => l.classList.toggle("sel", i === target));
+    const levels = computeLevels(), root = levels[levels.length - 1][0].h;
+    if (!headerRoot) headerRoot = root;
+    const { proof, path, sibs } = merkleProof(levels, target);
+    // layout
+    const SLOT = 78, NW = 66, NH = 24, LV = 58, PAD = 8;
+    const cx = [levels[0].map((_, i) => PAD + SLOT * i + SLOT / 2)];
+    for (let k = 1; k < levels.length; k++) {
+      const prev = cx[k - 1], cur = [];
+      levels[k].forEach((nd, j) => {
+        if (nd.dup) cur.push(cur.length > 1 ? 2 * cur[cur.length - 1] - cur[cur.length - 2] : cur[cur.length - 1] + SLOT * 2 ** k);
+        else cur.push((prev[2 * j] + prev[2 * j + 1]) / 2);
+      });
+      cx.push(cur);
+    }
+    const width = Math.max(...cx.flat()) + SLOT / 2 + PAD, depth = levels.length;
+    const height = depth * LV + 26;
+    const yOf = k => (depth - 1 - k) * LV + 8;
+    const acc = css("--accent"), acc2 = css("--accent-2"), ink = css("--ink"), mut = css("--muted"), line = css("--line"), panel = css("--panel");
+    let s = "";
+    for (let k = 1; k < depth; k++) levels[k].forEach((nd, j) => {
+      if (nd.dup) return;
+      [2 * j, 2 * j + 1].forEach(c => {
+        const onPath = path.has(`${k - 1}:${c}`) && path.has(`${k}:${j}`);
+        s += `<line x1="${cx[k][j]}" y1="${yOf(k) + NH}" x2="${cx[k - 1][c]}" y2="${yOf(k - 1)}" stroke="${onPath ? acc : line}" stroke-width="${onPath ? 2 : 1}"/>`;
+      });
+    });
+    levels.forEach((lv, k) => lv.forEach((nd, j) => {
+      const key = `${k}:${j}`, isP = path.has(key), isS = sibs.has(key) && !isP;
+      const stroke = isP ? acc : isS ? acc2 : nd.dup ? mut : line;
+      const fill = isP || isS ? stroke : panel, txt = isP || isS ? panel : ink;
+      const x = cx[k][j] - NW / 2, y = yOf(k);
+      const leaf = k === 0 && !nd.dup;
+      s += `<g${leaf ? ` class="leaf" data-i="${j}" tabindex="0" role="button" aria-label="Prove tx${j}"` : ""}>` +
+        `<rect x="${x}" y="${y}" width="${NW}" height="${NH}" rx="4" fill="${fill}" stroke="${stroke}" stroke-width="1.2"${nd.dup ? ' stroke-dasharray="4 3"' : ""}/>` +
+        `<text x="${cx[k][j]}" y="${y + 16}" text-anchor="middle" font-size="11" fill="${txt}">${hex(nd.h).slice(0, 7)}</text></g>`;
+      if (k === 0 && !nd.dup) s += `<text x="${cx[k][j]}" y="${y + NH + 15}" text-anchor="middle" font-size="11" fill="${j === target ? acc : mut}">tx${j}</text>`;
+    }));
+    const svg = $("mk-svg");
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("width", Math.max(width, 300)); svg.style.maxWidth = "100%"; svg.style.minWidth = Math.min(width, 640) + "px";
+    svg.innerHTML = s;
+    svg.querySelectorAll(".leaf").forEach(g => {
+      const pick = () => { $("mk-t").value = g.dataset.i; render(); };
+      g.addEventListener("click", pick);
+      g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+    });
+    // proof
+    let h = levels[0][target].h;
+    const steps = [`start: hash(tx${target}) = ${hex(h).slice(0, 16)}…`];
+    proof.forEach(({ h: sib, side }, i) => {
+      h = side === "left" ? sha256d(concat(sib, h)) : sha256d(concat(h, sib));
+      steps.push(`level ${i + 1}: hash(${side === "left" ? `<span class="hl2">${hex(sib).slice(0, 7)}</span> + current` : `current + <span class="hl2">${hex(sib).slice(0, 7)}</span>`}) = ${hex(h).slice(0, 16)}…`);
+    });
+    $("mk-steps").innerHTML = steps.map(x => `<li>${x}</li>`).join("");
+    $("mk-header").textContent = hex(headerRoot);
+    $("mk-root").textContent = hex(root);
+    const ok = hex(h) === hex(headerRoot);
+    $("mk-ok").innerHTML = ok ? `<span class="pill ok">valid: ${proof.length} hashes (${proof.length * 32} bytes) prove tx${target}</span>`
+                              : `<span class="pill bad">fails: recomputed root ≠ root in header</span>`;
+  }
+  $("mk-n").addEventListener("input", () => { headerRoot = null; buildInputs(); render(); });
+  $("mk-t").addEventListener("input", render);
+  $("mk-commit").addEventListener("click", () => { headerRoot = null; render(); });
+  redrawers.push(render);
+  buildInputs(); render();
+})();
+
+/* 06 curve */
+(() => {
+  const PR = [17, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127];
+  let state = null;
+  function setup() {
+    const p = PR[+$("ec-p").value], pb = BigInt(p);
+    const pts = [];
+    for (let x = 0; x < p; x++) for (let y = 0; y < p; y++) if ((y * y - x * x * x - 7) % p === 0 || ((y * y - x * x * x - 7) % p + p) % p === 0) pts.push([x, y]);
+    let best = null, bestN = 0;
+    for (const pt of pts) {
+      if (pt[1] === 0) continue;
+      let q = [BigInt(pt[0]), BigInt(pt[1])], n = 1;
+      const g = q;
+      while (q) { q = ecAdd(q, g, pb); n++; if (n > 4 * p) break; }
+      if (n > bestN) { bestN = n; best = g; }
+      if (bestN >= pts.length + 1) break;
+    }
+    const mult = [null, best];
+    for (let k = 2; k < bestN; k++) mult.push(ecAdd(mult[k - 1], best, pb));
+    state = { p, pts, G: best, n: bestN, mult };
+    const d = $("ec-d"); d.max = bestN - 1; if (+d.value > bestN - 1) d.value = Math.max(1, Math.floor(bestN / 2));
+    $("ec-p-v").textContent = p;
+    $("ec-count").textContent = `${pts.length} + the point at infinity`;
+    $("ec-g").textContent = `(${best[0]}, ${best[1]})`;
+    $("ec-n").textContent = bestN - 1;
+    draw();
+  }
+  function draw() {
+    const { p, pts, mult } = state, d = +$("ec-d").value, Q = mult[d];
+    $("ec-d-v").textContent = d;
+    $("ec-q").innerHTML = `Q = ${d}·G = <span class="hl">(${Q[0]}, ${Q[1]})</span>`;
+    const cv = $("ec-canvas"), dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = Math.min(420, Math.max(280, W * 0.75));
+    cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
+    const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    const pad = 28, sx = (W - pad - 10) / (p - 1), sy = (H - pad - 10) / (p - 1);
+    const X = x => pad + x * sx, Y = y => H - pad - y * sy;
+    ctx.strokeStyle = css("--line"); ctx.fillStyle = css("--muted"); ctx.font = "11px " + css("--font-mono");
+    ctx.beginPath(); ctx.moveTo(pad, H - pad); ctx.lineTo(W - 10, H - pad); ctx.moveTo(pad, H - pad); ctx.lineTo(pad, 10); ctx.stroke();
+    ctx.fillText("0", pad - 12, H - pad + 14); ctx.fillText(String(p - 1), X(p - 1) - 10, H - pad + 16); ctx.fillText(String(p - 1), 2, Y(p - 1) + 4);
+    ctx.fillText("x", W - 20, H - pad - 6); ctx.fillText("y", pad + 6, 18);
+    if ($("ec-trail").checked) {
+      ctx.strokeStyle = css("--accent-2"); ctx.globalAlpha = 0.55; ctx.lineWidth = 1.2; ctx.beginPath();
+      for (let k = 1; k <= d; k++) { const m = mult[k]; const x = X(Number(m[0])), y = Y(Number(m[1])); k === 1 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+      ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1;
+    }
+    ctx.fillStyle = css("--muted");
+    pts.forEach(([x, y]) => { ctx.beginPath(); ctx.arc(X(x), Y(y), 2.6, 0, 7); ctx.fill(); });
+    const dot = (pt, color, r, label) => { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(X(Number(pt[0])), Y(Number(pt[1])), r, 0, 7); ctx.fill(); ctx.font = "12px " + css("--font-mono"); ctx.fillText(label, X(Number(pt[0])) + 8, Y(Number(pt[1])) - 8); };
+    dot(state.G, css("--accent-2"), 6, "G");
+    dot(Q, css("--accent"), 7, d === 1 ? "Q = G" : "Q");
+  }
+  $("ec-p").addEventListener("input", setup); $("ec-d").addEventListener("input", draw); $("ec-trail").addEventListener("input", draw);
+  redrawers.push(draw); setup();
+
+  // real ECDSA
+  let sig = null, keys = null, other = ecMul(123456789n, G);
+  const short = n => { const h = n.toString(16).padStart(64, "0"); return h; };
+  function derive() {
+    let d = mod(big(sha256(enc.encode($("sig-pass").value))), N); if (d === 0n) d = 1n;
+    const Q = ecMul(d, G);
+    keys = { d, Q };
+    $("sig-d").textContent = short(d);
+    $("sig-q").textContent = (Q[1] & 1n ? "03" : "02") + short(Q[0]);
+    sig = null; $("sig-r").textContent = "press Sign"; $("sig-s").textContent = "–"; $("sig-v").textContent = "–";
+  }
+  function verify() {
+    if (!sig) return;
+    const ok = ecdsaVerify($("sig-wrong").checked ? other : keys.Q, enc.encode($("sig-check").value), sig);
+    $("sig-v").innerHTML = ok ? '<span class="pill ok">valid signature</span>' : '<span class="pill bad">invalid: message or key doesn\'t match</span>';
+  }
+  $("sig-sign").addEventListener("click", () => {
+    sig = ecdsaSign(keys.d, enc.encode($("sig-msg").value));
+    $("sig-r").textContent = short(sig[0]); $("sig-s").textContent = short(sig[1]);
+    $("sig-check").value = $("sig-msg").value; verify();
+  });
+  $("sig-pass").addEventListener("input", derive);
+  $("sig-msg").addEventListener("input", () => { sig = null; $("sig-r").textContent = "press Sign"; $("sig-s").textContent = "–"; $("sig-v").textContent = "–"; });
+  $("sig-check").addEventListener("input", verify); $("sig-wrong").addEventListener("input", verify);
+  derive();
+})();
+
+/* 07 RSA + PGP */
+(() => {
+  const PRIMES = []; for (let c = 11; PRIMES.length < 50; c++) if ([...Array(c).keys()].slice(2).every(d => d * d > c || c % d)) PRIMES.push(c);
+  let key = null;
+  const gcd = (a, b) => b ? gcd(b, a % b) : a;
+  function build() {
+    const p = PRIMES[+$("rsa-p").value], q = PRIMES[+$("rsa-q").value];
+    $("rsa-p-v").textContent = p; $("rsa-q-v").textContent = q;
+    if (p === q) { key = null; $("rsa-n").textContent = "pick two different primes"; ["rsa-phi", "rsa-e", "rsa-d"].forEach(i => $(i).textContent = "–"); $("rsa-formula").textContent = "p and q must be different."; $("rsa-sig").textContent = ""; $("pgp-flow").textContent = ""; return; }
+    const n = p * q, phi = (p - 1) * (q - 1);
+    const e = [65537, 257, 17, 5, 3, 7, 11, 13].find(x => x < phi && gcd(x, phi) === 1);
+    const d = Number(inv(BigInt(e), BigInt(phi)));
+    key = { p, q, n, phi, e, d };
+    $("rsa-n").textContent = fmt(n); $("rsa-phi").textContent = fmt(phi); $("rsa-e").textContent = e; $("rsa-d").textContent = fmt(d);
+    [["rsa-m", 0], ["pgp-k", 2], ["pgp-eve", 2]].forEach(([id, lo]) => { const s = $(id); s.min = lo; s.max = n - 1; if (+s.value > n - 1) s.value = Math.floor(n / 3); });
+    rsa(); sign(); pgp();
+  }
+  const pw = (b, e, n) => Number(modpow(BigInt(b), BigInt(e), BigInt(n)));
+  function rsa() {
+    if (!key) return;
+    const { n, e, d } = key, m = +$("rsa-m").value, c = pw(m, e, n), back = pw(c, d, n);
+    $("rsa-m-v").textContent = m;
+    $("rsa-formula").textContent =
+      `Encrypt with the public key (n, e) = (${n}, ${e}):\n  c = m^e mod n = ${m}^${e} mod ${n} = ${c}\n\n` +
+      `Decrypt with the private key d = ${d}:\n  m = c^d mod n = ${c}^${d} mod ${n} = ${back}   ${back === m ? "✓ original number" : ""}\n\n` +
+      `Why it works: e·d = ${e}·${d} = ${fmt(e * d)} ≡ 1 (mod φ = ${key.phi}), so (m^e)^d ≡ m (mod n).\n` +
+      `Finding d requires φ, which requires factoring n = ${n} into ${key.p} × ${key.q}.`;
+  }
+  const hmod = (s, n) => Number(big(sha256(enc.encode(s))) % BigInt(n));
+  function sign() {
+    if (!key) return;
+    const { n, e, d } = key, h = hmod($("rsa-smsg").value, n), s = pw(h, d, n);
+    const h2 = hmod($("rsa-vmsg").value, n), chk = pw(s, e, n), ok = chk === h2;
+    $("rsa-sig").innerHTML = esc(
+      `Alice:  h = sha256(msg) mod n = ${h}\n        signature s = h^d mod n = ${s}\n\n` +
+      `Bob:    s^e mod n = ${chk}\n        sha256(received) mod n = ${h2}\n        `) +
+      (ok ? '<span class="pill ok">match: signed by Alice, unchanged</span>' : '<span class="pill bad">no match: altered or not from Alice</span>');
+  }
+  const printable = u => u.every(b => b >= 32 && b < 127);
+  const showText = u => esc(Array.from(u, b => b >= 32 && b < 127 ? String.fromCharCode(b) : "·").join(""));
+  function pgp() {
+    if (!key) return;
+    const { n, e, d } = key, msg = enc.encode($("pgp-msg").value);
+    const Kk = +$("pgp-k").value, eve = +$("pgp-eve").value;
+    $("pgp-k-v").textContent = Kk; $("pgp-eve-v").textContent = eve;
+    const ct = xorBytes(msg, keystream(Kk, msg.length));
+    const wrapped = pw(Kk, e, n), unwrapped = pw(wrapped, d, n);
+    const pt = xorBytes(ct, keystream(unwrapped, ct.length));
+    const evePt = xorBytes(ct, keystream(eve, ct.length));
+    $("pgp-flow").innerHTML = esc(
+      `ALICE\n` +
+      `  1. encrypt the message with session key K = ${Kk} (fast symmetric cipher)\n` +
+      `     ciphertext = ${hex(ct).slice(0, 48)}${ct.length > 24 ? "…" : ""}\n` +
+      `  2. lock K with Bob's PUBLIC key:  K^e mod n = ${Kk}^${e} mod ${n} = ${wrapped}\n` +
+      `  3. send  [ locked K = ${wrapped} | ciphertext ]\n\n` +
+      `BOB\n` +
+      `  4. unlock K with his PRIVATE key: ${wrapped}^${d} mod ${n} = ${unwrapped}\n` +
+      `  5. decrypt → "`) + `<span class="hl2">${showText(pt)}</span>"\n\n` +
+      esc(`EVE (no private key, guesses K = ${eve})\n  decrypt → "`) + `<span class="${eve === Kk ? "hl2" : "hl"}">${showText(evePt)}</span>"` +
+      (eve === Kk ? "  ← lucky guess!" : "");
+  }
+  $("pgp-brute").addEventListener("click", () => {
+    if (!key) return;
+    const msg = enc.encode($("pgp-msg").value), ct = xorBytes(msg, keystream(+$("pgp-k").value, msg.length));
+    const t0 = performance.now(); let found = [], tried = 0;
+    for (let k = 2; k < key.n; k++) { tried++; if (printable(xorBytes(ct, keystream(k, ct.length)))) found.push(k); }
+    const ms = Math.round(performance.now() - t0);
+    $("pgp-brute-out").innerHTML = `Eve tried all ${fmt(tried)} possible keys in ${fmt(ms)} ms. ` +
+      (found.length ? `Only ${found.length === 1 ? "one key gives" : found.length + " keys give"} readable text: K = ${found.slice(0, 5).join(", ")}${found.length > 5 ? "…" : ""}. ` +
+        `She recovers "<span class="hl">${showText(xorBytes(ct, keystream(found[0], ct.length)))}</span>".` : "None gave readable text.");
+  });
+  ["rsa-p", "rsa-q"].forEach(id => $(id).addEventListener("input", build));
+  $("rsa-m").addEventListener("input", rsa);
+  ["rsa-smsg", "rsa-vmsg"].forEach(id => $(id).addEventListener("input", sign));
+  ["pgp-msg", "pgp-k", "pgp-eve"].forEach(id => $(id).addEventListener("input", pgp));
+  build();
+})();
+
+
+/* 08 MimbleWimble */
+(() => {
+  const rnd = () => { const b = new Uint8Array(32); crypto.getRandomValues(b); return mod(big(b), N) || 1n; };
+  const shortPt = Q => { const h = ptHex(Q); return h.length > 30 ? h.slice(0, 18) + "…" + h.slice(-6) : h; };
+  const shortN = n => { const h = n.toString(16).padStart(64, "0"); return h.slice(0, 10) + "…" + h.slice(-4); };
+  let rIn, rB, rC;
+  const newR = () => { rIn = rnd(); rB = rnd(); rC = rnd(); };
+  newR();
+  function render() {
+    const vin = +$("mw-in").value, fee = +$("mw-fee").value, sendEl = $("mw-send");
+    sendEl.max = Math.max(0, vin - fee); if (+sendEl.value > +sendEl.max) sendEl.value = sendEl.max;
+    const send = +sendEl.value, change = vin - send - fee, cheat = $("mw-cheat").checked ? 5 : 0;
+    $("mw-in-v").textContent = vin + " coins"; $("mw-send-v").textContent = send + " coins"; $("mw-fee-v").textContent = fee + " coins";
+    $("mw-change").textContent = change + " coins";
+    const Cin = commit(vin, rIn), Cb = commit(send + cheat, rB), Cc = commit(change, rC);
+    const rows = [["Input · Alice's coin", Cin, vin, rIn], ["Output · Bob", Cb, send + cheat, rB], ["Output · Alice's change", Cc, change, rC]];
+    $("mw-rows").innerHTML = rows.map(([l, C, v, r]) => `<tr><td>${l}</td><td class="mono">${shortPt(C)}</td><td class="secret mono">${v}${l.includes("Bob") && cheat ? ' <span class="hl">(+5 cheat)</span>' : ""}</td><td class="secret mono">${shortN(r)}</td></tr>`).join("");
+    $("mw-rows").closest("table").classList.toggle("reveal", $("mw-reveal").checked);
+    const S = ecAdd(ecAdd(ecAdd(Cb, Cc), commit(fee, 0n)), negPt(Cin));
+    const x = mod(rB + rC - rIn, N), E = ecMul(x, G);
+    const msg = enc.encode("kernel fee=" + fee), sig = schnorrSign(x, msg);
+    const ok = !!S && schnorrVerify(S, msg, sig);
+    $("mw-check").innerHTML = esc(
+      `A validator sees only the commitments, the fee and a kernel:\n` +
+      `  Σ outputs + fee·H − Σ inputs = ${shortPt(S)}\n` +
+      `  kernel excess E = x·G        = ${shortPt(E)}\n` +
+      `      (x = r_Bob + r_change − r_input; only Alice and Bob know it)\n\n` +
+      `  Does the kernel signature verify against that sum?  `) +
+      (ok ? '<span class="pill ok">yes: no coins created</span>' : '<span class="pill bad">no: the sum has an H part</span>') + "\n\n" +
+      esc(cheat
+        ? `The amounts give (${send + cheat} + ${change} + ${fee} − ${vin})·H = 5·H left over, so the sum is x·G + 5·H.\nNobody knows a private key for that point, so no valid signature can exist.`
+        : `The amounts give (${send} + ${change} + ${fee} − ${vin})·H = 0·H, so the H parts cancel.\nThe sum is exactly x·G, and the kernel signature proves the senders know x.`);
+  }
+  ["mw-in", "mw-send", "mw-fee", "mw-cheat", "mw-reveal"].forEach(id => $(id).addEventListener("input", render));
+  $("mw-new").addEventListener("click", () => { newR(); render(); });
+  render();
+
+  // cut-through
+  const r = { A: rnd(), B: rnd(), Ac: rnd(), C: rnd() };
+  const v = { A: 40, B: 25, Ac: 13, C: 24 }, fees = 3;
+  const Cm = k => commit(v[k], r[k]);
+  const names = { A: "Alice's coin (40)", B: "Bob's coin (25)", Ac: "Alice's change (13)", C: "Carol's coin (24)" };
+  const x1 = mod(r.B + r.Ac - r.A, N), x2 = mod(r.C - r.B, N);
+  function renderCT() {
+    const ct = $("mw-ct").checked;
+    const ins = ["A", "B"], outs = ["B", "Ac", "C"];
+    const line = (k, gone) => `<div class="mono small${gone ? " strike" : ""}">${shortPt(Cm(k))}<br><span class="muted">${names[k]}${gone ? " · removed" : ""}</span></div>`;
+    $("mw-ct-in").innerHTML = ins.map(k => line(k, ct && k === "B")).join("");
+    $("mw-ct-out").innerHTML = outs.map(k => line(k, ct && k === "B")).join("");
+    const keepIn = ct ? ["A"] : ins, keepOut = ct ? ["Ac", "C"] : outs;
+    let S = commit(fees, 0n);
+    keepOut.forEach(k => S = ecAdd(S, Cm(k))); keepIn.forEach(k => S = ecAdd(S, negPt(Cm(k))));
+    const ok = ptEq(S, ecMul(mod(x1 + x2, N), G));
+    $("mw-ct-check").innerHTML = esc(
+      `Inputs ${keepIn.length}, outputs ${keepOut.length}, kernels 2 (kernels are never removed)\n` +
+      `Σ outputs + fees·H − Σ inputs = (x₁ + x₂)·G ?  `) +
+      (ok ? '<span class="pill ok">still balances</span>' : '<span class="pill bad">does not balance</span>') +
+      esc(ct ? `\n\nBob's commitment was added once (as an output) and subtracted once (as an input),\nso deleting both changes nothing. A new node can verify the chain without ever seeing it.` : "");
+  }
+  $("mw-ct").addEventListener("input", renderCT);
+  renderCT();
+})();
+
+/* 09 hashes and trees */
+(() => {
+  function hashes() {
+    const m = enc.encode($("hx-in").value);
+    $("hx-btc").textContent = hex(sha256d(m));
+    $("hx-eth").textContent = hex(keccak256(m));
+    $("hx-sha3").textContent = hex(keccak256(m, 0x06));
+  }
+  $("hx-in").addEventListener("input", hashes); hashes();
+
+  const REF = [
+    { pairs: [["do", "verb"], ["dog", "puppy"], ["doge", "coin"], ["horse", "stallion"]], root: "5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84" },
+    { pairs: [["doe", "reindeer"], ["dog", "puppy"], ["dogglesworth", "cat"]], root: "8aad789dff2f538bca5d8ea56e8abe10f4c7ba3a5dea95fea4cd6e7c3a1168d3" }];
+  const nibHex = ns => ns.map(n => n.toString(16)).join("");
+  const trunc = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
+  function render() {
+    const map = new Map();
+    $("mpt-in").value.split("\n").forEach(l => { const i = l.indexOf("="); if (i < 0) return; const k = l.slice(0, i).trim(), v = l.slice(i + 1).trim(); if (k && v) map.set(k, v); });
+    const pairs = [...map.entries()];
+    const { root, tree } = mptRoot(pairs);
+    $("mpt-root").textContent = "0x" + hex(root);
+    const key = JSON.stringify([...pairs].sort());
+    const ref = REF.find(r => JSON.stringify([...r.pairs].sort()) === key);
+    $("mpt-ref").innerHTML = ref ? (ref.root === hex(root) ? `<span class="pill ok">matches Ethereum's test suite</span>` : `<span class="pill bad">mismatch</span>`)
+      : `<span class="muted">custom keys (restore the four defaults to compare)</span>`;
+    const svg = $("mpt-svg");
+    if (!tree) { svg.setAttribute("viewBox", "0 0 300 40"); svg.innerHTML = `<text x="10" y="24" font-size="12" fill="${css("--muted")}">empty trie</text>`; return; }
+    const UNIT = 132, BW = 120, BH = 50, LV = 84;
+    function lay(n, x0, depth) {
+      n.depth = depth;
+      if (!n.children || !n.children.length) { n.w = 1; n.x = x0 + UNIT / 2; return 1; }
+      let w = 0; n.children.forEach(c => { const node = c.node || c; w += lay(node, x0 + w * UNIT, depth + 1); });
+      n.w = w; const first = n.children[0].node || n.children[0], last = n.children[n.children.length - 1].node || n.children[n.children.length - 1];
+      n.x = (first.x + last.x) / 2; return w;
+    }
+    lay(tree, 0, 0);
+    let maxD = 0; (function md(n) { maxD = Math.max(maxD, n.depth); (n.children || []).forEach(c => md(c.node || c)); })(tree);
+    const W = tree.w * UNIT, H = (maxD + 1) * LV + 10;
+    const col = { branch: css("--accent-2"), ext: css("--muted"), leaf: css("--accent") }, ink = css("--ink"), mut = css("--muted"), panel = css("--panel");
+    let s = "";
+    (function draw(n) {
+      const y = n.depth * LV + 6;
+      (n.children || []).forEach(c => {
+        const ch = c.node || c, cy = ch.depth * LV + 6;
+        s += `<line x1="${n.x}" y1="${y + BH}" x2="${ch.x}" y2="${cy}" stroke="${css("--line")}" stroke-width="1.2"/>`;
+        if (c.nib !== undefined) s += `<text x="${(n.x + ch.x) / 2 + 6}" y="${(y + BH + cy) / 2 + 4}" font-size="11" fill="${col.branch}">${c.nib.toString(16)}</text>`;
+        draw(ch);
+      });
+      const lines = n.type === "branch" ? ["branch", "slots " + n.children.map(c => c.nib.toString(16)).join(" "), n.value ? `value "${trunc(n.value, 10)}"` : ""]
+        : n.type === "ext" ? ["extension", "nibbles " + trunc(nibHex(n.path), 10), ""]
+        : ["leaf", "nibbles " + trunc(nibHex(n.path), 10) || "(none)", `"${trunc(n.value, 12)}"`];
+      if (n.type === "leaf" && !n.path.length) lines[1] = "nibbles (none)";
+      s += `<rect x="${n.x - BW / 2}" y="${y}" width="${BW}" height="${BH}" rx="5" fill="${panel}" stroke="${col[n.type]}" stroke-width="1.5"/>` +
+        `<text x="${n.x}" y="${y + 15}" text-anchor="middle" font-size="11.5" font-weight="500" fill="${col[n.type]}">${lines[0]}</text>` +
+        `<text x="${n.x}" y="${y + 30}" text-anchor="middle" font-size="10.5" fill="${ink}">${esc(lines[1])}</text>` +
+        (lines[2] ? `<text x="${n.x}" y="${y + 44}" text-anchor="middle" font-size="10.5" fill="${mut}">${esc(lines[2])}</text>` : "");
+    })(tree);
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.style.maxWidth = "100%"; svg.style.minWidth = Math.min(W, 560) + "px";
+    svg.innerHTML = s;
+  }
+  $("mpt-in").addEventListener("input", render);
+  redrawers.push(render); render();
+})();
+
+/* 10 key to address */
+(() => {
+  let forced = null;
+  const step = (title, value, note) => `<div class="step"><div class="t">${title}</div><div class="v mono">${value}</div>${note ? `<div class="t">${note}</div>` : ""}</div>`;
+  function render() {
+    let d = forced !== null ? forced : mod(big(sha256(enc.encode($("ad-pass").value))), N);
+    if (d === 0n) d = 1n;
+    const Q = ecMul(d, G);
+    $("ad-d").textContent = d.toString(16).padStart(64, "0");
+    $("ad-q").textContent = `x = ${Q[0].toString(16).padStart(64, "0")}, y = ${Q[1].toString(16).padStart(64, "0")}`;
+    const pub33 = compressPub(Q), h160 = hash160(pub33);
+    const p2pkh = base58check(concat(Uint8Array.of(0), h160));
+    const p2wpkh = segwitAddress("bc", 0, h160);
+    const tq = taprootOutputKey(Q[0]), p2tr = segwitAddress("bc", 1, toBytes32(tq[0]));
+    $("ad-btc").innerHTML = "<h3>Bitcoin</h3>" +
+      step("Compressed public key · 33 bytes", `<span class="hl2">${hex(pub33).slice(0, 2)}</span>${hex(pub33).slice(2)}`, "First byte 02 or 03 records whether y is even or odd, so y can be dropped") +
+      step("HASH160 = RIPEMD-160(SHA-256(key)) · 20 bytes", hex(h160)) +
+      step("Legacy P2PKH · Base58Check(00 + hash) · since 2009", `<span class="hl">${p2pkh}</span>`) +
+      step("SegWit v0 P2WPKH · bech32 · since 2017", `<span class="hl">${p2wpkh}</span>`) +
+      step("Taproot P2TR · key tweaked by a tagged hash, bech32m · since 2021", `<span class="hl">${p2tr}</span>`, "Same key, three address types. Each locks coins with a different script.");
+    const raw = concat(toBytes32(Q[0]), toBytes32(Q[1])), kh = keccak256(raw), ea = ethAddress(Q);
+    const lower = hex(kh.subarray(12)), ch = hex(keccak256(enc.encode(lower)));
+    $("ad-eth").innerHTML = "<h3>Ethereum</h3>" +
+      step("Uncompressed public key x ‖ y · 64 bytes", hex(raw)) +
+      step("Keccak-256(key) · 32 bytes; keep the last 20", `<span class="muted">${hex(kh).slice(0, 24)}</span><span class="hl2">${hex(kh).slice(24)}</span>`) +
+      step("Raw address · 20 bytes", "0x" + lower) +
+      step("EIP-55 checksum: uppercase a letter where keccak(address) has a hex digit ≥ 8",
+        `<span class="muted">${ch.slice(0, 40)}</span><br><span class="hl">${ea.checksummed}</span>`,
+        "Ethereum has one address format, and the capital letters catch typos.");
+  }
+  $("ad-pass").addEventListener("input", () => { forced = null; render(); });
+  $("ad-one").addEventListener("click", () => { forced = 1n; $("ad-pass").value = ""; $("ad-pass").placeholder = "using private key = 1"; render(); });
+  render();
+})();
+
+/* 11 transactions */
+(() => {
+  const dA = mod(big(sha256(enc.encode("alice"))), N), dB = mod(big(sha256(enc.encode("bob"))), N);
+  const QA = ecMul(dA, G), QB = ecMul(dB, G);
+  const scriptA = concat(Uint8Array.of(0x00, 0x14), hash160(compressPub(QA))), scriptB = concat(Uint8Array.of(0x00, 0x14), hash160(compressPub(QB)));
+  const UTXOS = [
+    { sats: 50000000, txid: sha256d(enc.encode("funding tx 1")), vout: 0, on: true },
+    { sats: 30000000, txid: sha256d(enc.encode("funding tx 2")), vout: 1, on: true },
+    { sats: 20000000, txid: sha256d(enc.encode("funding tx 3")), vout: 0, on: false }];
+  const btc = s => (s / 1e8).toFixed(8).replace(/0+$/, "").replace(/\.$/, "") + " BTC";
+  const le = (n, len) => { const b = new Uint8Array(len); let v = BigInt(n); for (let i = 0; i < len; i++) { b[i] = Number(v & 255n); v >>= 8n; } return b; };
+  const rev = b => b.slice().reverse();
+  const box = $("ut-utxos");
+  UTXOS.forEach((u, i) => {
+    const l = document.createElement("label"); l.className = "row small"; l.htmlFor = "ut-u" + i;
+    l.innerHTML = `<input type="checkbox" id="ut-u${i}"${u.on ? " checked" : ""}> <span class="mono">${hex(rev(u.txid)).slice(0, 8)}…:${u.vout}</span> <b class="mono">${btc(u.sats)}</b>`;
+    l.querySelector("input").addEventListener("input", e => { u.on = e.target.checked; render(); });
+    box.appendChild(l);
+  });
+  const SEG = { ver: ["version / locktime", "--muted"], cnt: ["counts", "--ink"], in: ["input: previous txid, index, script, sequence", "--accent-2"], val: ["output amount", "--accent"], out: ["output locking script", "--ok"] };
+  $("ut-legend").innerHTML = Object.values(SEG).map(([t, c]) => `<span><i class="sw" style="background:var(${c})"></i>${t}</span>`).join("");
+  function render() {
+    const send = +$("ut-send").value * 1e6, rate = +$("ut-rate").value;
+    $("ut-send-v").textContent = btc(send); $("ut-rate-v").textContent = rate + " sat/vB";
+    const ins = UTXOS.filter(u => u.on), total = ins.reduce((a, u) => a + u.sats, 0);
+    let nout = 2, vsize = Math.ceil(10.5 + 68 * ins.length + 31 * nout), fee = rate * vsize, change = total - send - fee;
+    if (change >= 0 && change < 546) { nout = 1; vsize = Math.ceil(10.5 + 68 * ins.length + 31); fee = total - send; change = 0; }
+    const st = $("ut-status");
+    if (!ins.length || change < 0) {
+      st.innerHTML = `<span class="pill bad">Not enough selected: ${btc(total)} in, needs ${btc(send + rate * vsize)}. Tick another output.</span>`;
+      ["ut-ins", "ut-outs", "ut-bytes", "ut-txid"].forEach(id => $(id).textContent = "–"); return;
+    }
+    st.innerHTML = `<span class="pill ok">inputs ${btc(total)} = outputs ${btc(send + change)} + fee ${btc(fee)} (${vsize} vB)</span>`;
+    $("ut-ins").innerHTML = ins.map(u => `${hex(rev(u.txid)).slice(0, 12)}…:${u.vout}<br><b>${btc(u.sats)}</b>`).join("<br><br>");
+    $("ut-outs").innerHTML = `Bob · ${btc(send)}` + (change ? `<br>Alice's change · ${btc(change)}` : `<br><span class="muted">no change: under 546 sats, it goes to the fee</span>`) +
+      `<br><span class="muted">miner fee · ${btc(fee)} (implicit)</span>`;
+    const segs = [["ver", le(2, 4)], ["cnt", Uint8Array.of(ins.length)]];
+    ins.forEach(u => { segs.push(["in", u.txid], ["in", le(u.vout, 4)], ["in", Uint8Array.of(0)], ["in", fromHex("fdffffff")]); });
+    segs.push(["cnt", Uint8Array.of(nout)]);
+    [[send, scriptB], ...(change ? [[change, scriptA]] : [])].forEach(([v, sc]) => segs.push(["val", le(v, 8)], ["out", Uint8Array.of(sc.length)], ["out", sc]));
+    segs.push(["ver", le(0, 4)]);
+    $("ut-bytes").innerHTML = segs.map(([k, b]) => Array.from(b, x => `<span style="border-color:var(${SEG[k][1]});color:var(${SEG[k][1]})">${x.toString(16).padStart(2, "0")}</span>`).join("")).join("");
+    const raw = concatAll(segs.map(s => s[1]));
+    $("ut-txid").textContent = hex(rev(sha256d(raw))) + "  (sha256d of the bytes, shown reversed as Bitcoin tools do)";
+  }
+  ["ut-send", "ut-rate"].forEach(id => $(id).addEventListener("input", render));
+  render();
+
+  // Ethereum
+  const from = ethAddress(QA).checksummed, to = ethAddress(QB), GAS = 21000n, GWEI = 10n ** 9n, ETH = 10n ** 18n;
+  const fmtEth = w => { const neg = w < 0n; const s = (Number(neg ? -w : w) / 1e18).toFixed(6).replace(/0+$/, "").replace(/\.$/, ""); return (neg ? "−" : "") + s + " ETH"; };
+  const short = h => h.length > 42 ? h.slice(0, 26) + "…" + h.slice(-8) : h;
+  function renderEth() {
+    const value = BigInt($("et-val").value) * 10n ** 16n, base = BigInt($("et-base").value), max = BigInt($("et-max").value);
+    const tip = BigInt(Math.min(+$("et-tip").value, +$("et-max").value));
+    $("et-val-v").textContent = fmtEth(value); $("et-base-v").textContent = base + " gwei"; $("et-tip-v").textContent = tip + " gwei"; $("et-max-v").textContent = max + " gwei";
+    const balA = 2n * ETH, balB = ETH / 2n, nonce = 7n;
+    $("et-before").innerHTML = `Alice ${short(from)}<br>balance ${fmtEth(balA)} · nonce ${nonce}<br><br>Bob ${short(to.checksummed)}<br>balance ${fmtEth(balB)}`;
+    const items = [["chainId", "1 (mainnet)", rlpInt(1)], ["nonce", String(nonce), rlpInt(nonce)], ["maxPriorityFeePerGas", tip + " gwei", rlpInt(tip * GWEI)],
+      ["maxFeePerGas", max + " gwei", rlpInt(max * GWEI)], ["gasLimit", "21000", rlpInt(GAS)], ["to", short(to.checksummed), rlpBytes(to.raw.subarray(12))],
+      ["value", fmtEth(value), rlpInt(value)], ["data", "(empty)", rlpBytes(new Uint8Array(0))], ["accessList", "[]", rlpList([])]];
+    const payload = concat(Uint8Array.of(2), rlpList(items.map(i => i[2])));
+    const sh = keccak256(payload), sg = signHash(dA, sh);
+    const signed = concat(Uint8Array.of(2), rlpList([...items.map(i => i[2]), rlpInt(sg.rec), rlpInt(sg.r), rlpInt(sg.s)]));
+    $("et-fields").innerHTML = items.map(([f, v, b]) => `<tr><td>${f}</td><td class="mono">${v}</td><td class="mono">${short(hex(b))}</td></tr>`).join("");
+    $("et-sighash").textContent = "0x" + hex(sh) + "  = keccak256(0x02 ‖ rlp(fields))";
+    $("et-sig").textContent = `yParity ${sg.rec}, r ${sg.r.toString(16).slice(0, 16)}…, s ${sg.s.toString(16).slice(0, 16)}…`;
+    $("et-raw").textContent = "0x" + short(hex(signed)) + ` (${signed.length} bytes)`;
+    $("et-hash").textContent = "0x" + hex(keccak256(signed));
+    if (max < base) {
+      $("et-status").innerHTML = `<span class="pill bad">Waiting: max fee ${max} gwei is below the base fee ${base} gwei, so no block can include it yet</span>`;
+      $("et-after").innerHTML = `<span class="muted">nothing changes until the base fee drops</span>`; return;
+    }
+    const eff = base + tip < max ? base + tip : max, fee = eff * GWEI * GAS, burned = base * GWEI * GAS, paidTip = fee - burned;
+    $("et-status").innerHTML = `<span class="pill ok">included at ${eff} gwei per gas · fee ${fmtEth(fee)}</span>`;
+    $("et-after").innerHTML = `Alice<br>balance ${fmtEth(balA - value - fee)} · nonce ${nonce + 1n}<br><br>Bob<br>balance ${fmtEth(balB + value)}<br><br>` +
+      `<span class="muted">burned (base fee) ${fmtEth(burned)}<br>validator tip ${fmtEth(paidTip)}</span>`;
+  }
+  ["et-val", "et-base", "et-tip", "et-max"].forEach(id => $(id).addEventListener("input", renderEth));
+  renderEth();
+})();
+
+/* 12 consensus */
+(() => {
+  let seed = 11;
+  const rng = s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  function nakamoto(q, z) {
+    const p = 1 - q; if (q >= p) return 1;
+    const lam = z * q / p; let sum = 1;
+    for (let k = 0; k <= z; k++) { let poi = Math.exp(-lam); for (let i = 1; i <= k; i++) poi *= lam / i; sum -= poi * (1 - Math.pow(q / p, z - k)); }
+    return Math.max(0, sum);
+  }
+  function render() {
+    const a = +$("cs-att").value / 100, z = +$("cs-z").value, off = +$("cs-off").value / 100, withhold = $("cs-withhold").checked;
+    $("cs-att-v").textContent = Math.round(a * 100) + "%"; $("cs-z-v").textContent = z + (z === 1 ? " block" : " blocks"); $("cs-off-v").textContent = Math.round(off * 100) + "%";
+    const p = nakamoto(a, z);
+    $("cs-pow-p").textContent = p === 0 ? "0%" : p < 1e-6 ? "< 0.0001%" : (p * 100).toPrecision(3) + "%";
+    $("cs-pow-t").textContent = "≈ " + z * 10 + " min";
+    const voting = (1 - a) * (1 - off) + (withhold ? 0 : a), final = voting >= 2 / 3;
+    $("cs-pos-f").innerHTML = final ? `<span style="color:var(--ok)">≈ 12.8 min</span>` : `<span style="color:var(--bad)">stalled</span>`;
+    $("cs-pos-r").innerHTML = a < 1 / 3 ? "impossible" : `<span style="color:var(--bad)">burns ≥ 1/3 of stake</span>`;
+    $("cs-note").textContent = (final
+      ? `${Math.round(voting * 100)}% of stake is voting, above the 2/3 needed, so each checkpoint becomes final two epochs later. `
+      : `Only ${Math.round(voting * 100)}% of stake is voting, below 2/3. Ethereum keeps producing blocks but can't finalize them; after four epochs the inactivity leak starts draining the non-voters' stake until voters are back above 2/3. `) +
+      `Reverting a finalized block needs validators holding at least 1/3 of all stake to sign conflicting votes, and the protocol then slashes them. ` +
+      `Bitcoin has no finality: each confirmation makes a reversal exponentially less likely, until an attacker controls over half the hashrate.`;
+    // canvas
+    const R = rng(seed), cv = $("cs-canvas"), dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = 230;
+    cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
+    const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    const L = 8, Rr = 8, X = m => L + (W - L - Rr) * m / 60;
+    const mut = css("--muted"), line = css("--line"), hon = css("--accent-2"), att = css("--accent"), ok = css("--ok");
+    ctx.font = "11px " + css("--font-mono");
+    ctx.fillStyle = mut; ctx.fillText("Bitcoin: proof of work, a block whenever someone finds a valid hash", L, 14);
+    let t = 0;
+    for (;;) { t += -Math.log(1 - R()) * 10; if (t >= 60) break; ctx.fillStyle = R() < a ? att : hon; ctx.fillRect(X(t) - 3, 22, 6, 38); }
+    ctx.fillStyle = mut; ctx.fillText("Ethereum: proof of stake, one proposer per 12-second slot · 32 slots = 1 epoch", L, 88);
+    const sw = (W - L - Rr) / 300;
+    for (let i = 0; i < 300; i++) {
+      const isAtt = R() < a, missed = !isAtt && R() < off;
+      ctx.fillStyle = missed ? line : isAtt ? att : hon;
+      ctx.fillRect(L + i * sw, 96, Math.max(1, sw - 0.6), 38);
+    }
+    ctx.strokeStyle = mut; ctx.lineWidth = 1;
+    for (let e = 0; e * 32 <= 300; e++) { const x = L + e * 32 * sw; ctx.beginPath(); ctx.moveTo(x, 94); ctx.lineTo(x, 140); ctx.stroke(); }
+    if (final) {
+      const fin = (Math.floor(300 / 32) - 2) * 32;
+      ctx.fillStyle = ok; ctx.fillRect(L, 144, fin * sw, 6);
+      ctx.fillStyle = mut; ctx.fillText("finalized", L, 166); ctx.fillText("not final yet →", L + fin * sw + 6, 166);
+    } else { ctx.fillStyle = css("--bad"); ctx.fillText("no checkpoint finalized: less than 2/3 of stake voting", L, 166); }
+    ctx.fillStyle = mut;
+    [0, 15, 30, 45, 60].forEach(m => ctx.fillText(m + " min", Math.min(X(m), W - 44), 200));
+    ctx.strokeStyle = line; ctx.beginPath(); ctx.moveTo(L, 184); ctx.lineTo(W - Rr, 184); ctx.stroke();
+  }
+  ["cs-att", "cs-z", "cs-off", "cs-withhold"].forEach(id => $(id).addEventListener("input", render));
+  $("cs-roll").addEventListener("click", () => { seed = (seed * 48271 + 7) % 2147483647; render(); });
+  redrawers.push(render); render();
+})();
+
+/* redraw canvases/SVG on resize and theme change */
+let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => redrawers.forEach(f => f()), 120); });
+new MutationObserver(() => redrawers.forEach(f => f())).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => redrawers.forEach(f => f()));
+</script>
+</body>
+</html>
